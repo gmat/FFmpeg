@@ -20,32 +20,50 @@
 #define Y(R,G,B) 0.299 * R + 0.587 * G + 0.114 * B
 #define U(R,G,B) -0.147 * R - 0.289 * G + 0.436 * B
 #define V(R,G,B) 0.615 * R - 0.515 * G - 0.100 * B
-#define YUV(R,G,B) (float4)(Y(R,G,B),U(R,G,B),V(R,G,B),0)
+#define YUV(R,G,B) (float4)(Y(R,G,B),U(R,G,B),V(R,G,B),1)
+#define OVERLAP 64
+#define CUT 688
+#define BASESIZE 3968
+
 
 __kernel void gopromax_stack(__write_only image2d_t dst,
-                                __read_only  image2d_t gopromax_front,
-                                __read_only  image2d_t gopromax_rear)
+                             __read_only  image2d_t gopromax_front,
+                             __read_only  image2d_t gopromax_rear)
 {
     const sampler_t sampler = (CLK_NORMALIZED_COORDS_FALSE |
+                               CLK_ADDRESS_CLAMP_TO_EDGE   |
                                CLK_FILTER_NEAREST);
     
     float4 val;
-    int2 dst_size = get_image_dim(dst);
     int2 loc = (int2)(get_global_id(0), get_global_id(1));
-    int split_loc = dst_size.y/2;
+    int2 dst_size = get_image_dim(dst);
+    int half_height = dst_size.y / 2;
+    int cut0 = dst_size.x * CUT / BASESIZE;
+    int cut1 = dst_size.x - cut0;
+    int overlap = dst_size.x * OVERLAP / BASESIZE;
+    
+    int x;
+    if (loc.x < (cut0-overlap))
+    {
+        x = loc.x;
+    }
+    else if ( (loc.x>=(cut0-overlap)) && ( loc.x < ( cut1 + overlap) ) )
+    {
+        x = loc.x + overlap;
+    }
+    else if ( loc.x >= ( cut1 - 2*overlap) )
+    {
+        x = loc.x + 2*overlap;
+    }
+    
+    if (loc.y < half_height)
+    {
+        val = read_imagef(gopromax_front, sampler, (int2)(x, loc.y));
+    }
+    else
+    {
+        val = read_imagef(gopromax_rear, sampler, (int2)(x, loc.y-half_height));
+    }
 
-        if (loc.y < split_loc)
-        {
-            val = read_imagef(gopromax_front, sampler, (int2)(loc.x, loc.y));
-            //val = YUV(0.5f,0.5f,0.5f);
-        }
-        else
-        {
-            
-            val = read_imagef(gopromax_rear, sampler, (int2)(loc.x, loc.y-split_loc));
-            //val = YUV(0,0,0);
-        }
-
-    if ((loc.x<dst_size.x) && (loc.y<dst_size.y))
         write_imagef(dst, loc, val);
 }
