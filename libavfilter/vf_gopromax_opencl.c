@@ -28,6 +28,11 @@
 #include "opencl_source.h"
 #include "video.h"
 
+#define _WIDTH 5376
+#define _HEIGHT 2688
+#define OVERLAP 64
+#define CUT 688
+
 typedef struct GoProMaxOpenCLContext {
     OpenCLFilterContext ocf;
 
@@ -125,7 +130,7 @@ static int gopromax_opencl_stack(FFFrameSync *fs)
 {
     AVFilterContext    *avctx = fs->parent;
     AVFilterLink     *outlink = avctx->outputs[0];
-    av_log(avctx, AV_LOG_VERBOSE,"In gopromax_opencl_stack\n");
+    
     GoProMaxOpenCLContext *ctx = avctx->priv;
     AVFrame *gopromax_front, *gotpromax_rear;
     AVFrame *output;
@@ -173,36 +178,14 @@ static int gopromax_opencl_stack(FFFrameSync *fs)
         mem = (cl_mem)gotpromax_rear->data[plane];
         CL_SET_KERNEL_ARG(ctx->kernel, kernel_arg, cl_mem, &mem);
         kernel_arg++;
-/*
-        if (ctx->alpha_separate) {
-            mem = (cl_mem)gotpromax_rear->data[ctx->nb_planes];
-            CL_SET_KERNEL_ARG(ctx->kernel, kernel_arg, cl_mem, &mem);
-            kernel_arg++;
-        }
 
-        x = ctx->x_position / (plane == 0 ? 1 : ctx->x_subsample);
-        y = ctx->y_position / (plane == 0 ? 1 : ctx->y_subsample);
-
-        CL_SET_KERNEL_ARG(ctx->kernel, kernel_arg, cl_int, &x);
-        kernel_arg++;
-        CL_SET_KERNEL_ARG(ctx->kernel, kernel_arg, cl_int, &y);
-        kernel_arg++;
-
-        if (ctx->alpha_separate) {
-            cl_int alpha_adj_x = plane == 0 ? 1 : ctx->x_subsample;
-            cl_int alpha_adj_y = plane == 0 ? 1 : ctx->y_subsample;
-
-            CL_SET_KERNEL_ARG(ctx->kernel, kernel_arg, cl_int, &alpha_adj_x);
-            kernel_arg++;
-            CL_SET_KERNEL_ARG(ctx->kernel, kernel_arg, cl_int, &alpha_adj_y);
-            kernel_arg++;
-        }
-*/
         err = ff_opencl_filter_work_size_from_image(avctx, global_work,
                                                     output, plane, 0);
         if (err < 0)
             goto fail;
 
+        av_log(avctx, AV_LOG_VERBOSE,"In gopromax_opencl_stack for plane:%d %dx%d frame size %dx%d\n",plane,global_work[0],global_work[1],outlink->w, outlink->h);
+        
         cle = clEnqueueNDRangeKernel(ctx->command_queue, ctx->kernel, 2, NULL,
                                      global_work, NULL, 0, NULL, NULL);
         CL_FAIL_ON_ERROR(AVERROR(EIO), "Failed to enqueue gopromax kernel "
@@ -231,17 +214,21 @@ static int gopromax_opencl_config_output(AVFilterLink *outlink)
     av_log(avctx, AV_LOG_VERBOSE,"Setting output\n");
     GoProMaxOpenCLContext *ctx = avctx->priv;
     av_log(avctx, AV_LOG_VERBOSE,"Geting filtercontext\n");
+    AVFilterLink *inlink = avctx->inputs[0];
+    const AVPixFmtDescriptor *desc_in  = av_pix_fmt_desc_get(inlink->format);
     AVRational frame_rate = avctx->inputs[0]->frame_rate;
     AVRational sar = avctx->inputs[0]->sample_aspect_ratio;
     int height = avctx->inputs[0]->h;
     int width = avctx->inputs[0]->w;
     int err;
-
-    //outlink->w          = width;
-    //outlink->h          = 2*height;
-    //outlink->frame_rate = frame_rate;
-    //outlink->sample_aspect_ratio = sar;
     
+    if (desc_in->log2_chroma_w != desc_in->log2_chroma_h) {
+        av_log(avctx, AV_LOG_ERROR, "Input format %s not supported.\n",
+               desc_in->name);
+        return AVERROR(EINVAL);
+    }
+    
+    ctx->ocf.output_width = 4*height;
     ctx->ocf.output_height = 2*height;
 
     err = ff_opencl_filter_config_output(outlink);
