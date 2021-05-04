@@ -18,13 +18,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-
-#define Y(R,G,B) 0.299 * R + 0.587 * G + 0.114 * B
-#define U(R,G,B) -0.147 * R - 0.289 * G + 0.436 * B
-#define V(R,G,B) 0.615 * R - 0.515 * G - 0.100 * B
-#define YUV(R,G,B) (float4)(Y(R,G,B),U(R,G,B),V(R,G,B),1)
-#define GREY YUV(0.5,0.5,0.5)
-
 #define OVERLAP 64
 #define CUT 688
 #define BASESIZE 4096 //OVERLAP and CUT are based on this size
@@ -101,7 +94,6 @@ float3 equirect_to_xyz(int2 xy,int2 size)
 
     return xyz;
 }
-<<<<<<< HEAD
 
 float2 xyz_to_cube(float3 xyz, int *direction, int *face)
 {
@@ -208,36 +200,6 @@ float2 xyz_to_eac(float3 xyz, int2 size)
     uv.y *= size.y;
 
     return uv;
-=======
-#else
-#define FOV 360.0f
-float3 get_cartesian_coordinates(float2 phi_theta);
-
-float3 equirect_to_xyz(int2 xy,int2 size);
-float3 equirect_to_xyz(int2 xy,int2 size)
-{
-    float3 xyz;
-    float phi   = ((2.f * xy.x + 0.5f) / size.x  - 1.f) * FOV * PI /360;
-    float theta = ((2.f * xy.y + 0.5f) / size.y - 1.f) * FOV * PI /360;
-    float sin_phi   = sin(phi);
-    float cos_phi   = cos(phi);
-    float sin_theta = sin(theta);
-    float cos_theta = cos(theta);
-
-    xyz.x = cos_theta * sin_phi;
-    xyz.y = sin_theta;
-    xyz.z = cos_theta * cos_phi;
-    return xyz;
-}
-
-
-float3 get_cartesian_coordinates(float2 phi_theta)
-{
-    float x = cos(phi_theta.x) * cos(phi_theta.y);
-    float y = sin(phi_theta.y);
-    float z = cos(phi_theta.x) * sin(phi_theta.y);
-    return (float3)(x,y,z);
->>>>>>> 609ec4da8fe3f03554870c07e98e0a112df8b868
 }
 
 const sampler_t sampler = (CLK_NORMALIZED_COORDS_FALSE |
@@ -246,7 +208,6 @@ const sampler_t sampler = (CLK_NORMALIZED_COORDS_FALSE |
 
 int2 transpose_gopromax_overlap(int2 xy, int2 dim)
 {
-<<<<<<< HEAD
     int2 ret;
     int cut = dim.x*CUT/BASESIZE;
     int overlap = dim.x*OVERLAP/BASESIZE;
@@ -265,12 +226,6 @@ int2 transpose_gopromax_overlap(int2 xy, int2 dim)
             ret.y = xy.y;
         }
     return ret;
-=======
-        float2 xy;
-        xy.x= 0.5*(uv.x+1.0f)*face_size;
-        xy.y= 0.5*(uv.y+1.0f)*face_size;
-        return (int2)( (int)(xy.x), (int)(xy.y) );
->>>>>>> 609ec4da8fe3f03554870c07e98e0a112df8b868
 }
 __kernel void gopromax_equirectangular(__write_only image2d_t dst,
                              __read_only  image2d_t gopromax_front,
@@ -323,7 +278,6 @@ __kernel void gopromax_stack(__write_only image2d_t dst,
     int cut1 = dst_size.x - cut0;
     int overlap = dst_size.x * OVERLAP / (BASESIZE-2*OVERLAP);
     
-<<<<<<< HEAD
     int x;
     if (loc.x < (cut0-overlap))
     {
@@ -346,12 +300,6 @@ __kernel void gopromax_stack(__write_only image2d_t dst,
     {
         val = read_imagef(gopromax_rear, sampler, (int2)(x, loc.y-half_height));
     }
-=======
-    float3 xyz = equirect_to_xyz(loc,dst_size);
-    val = get_val_at_src_local_coordinates(xyz,gopromax_front, gopromax_rear);
-
-    write_imagef(dst, loc, val);
->>>>>>> 609ec4da8fe3f03554870c07e98e0a112df8b868
 
         write_imagef(dst, loc, val);
 }

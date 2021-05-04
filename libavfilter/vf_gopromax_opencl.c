@@ -317,7 +317,7 @@ static const AVFilterPad gopromax_opencl_outputs[] = {
 
 const AVFilter ff_vf_gopromax_opencl = {
     .name            = "gopromax_opencl",
-    .description     = NULL_IF_CONFIG_SMALL("GoProMax one video on top of another"),
+    .description     = NULL_IF_CONFIG_SMALL("GoProMax .360 to equirectangular projection"),
     .priv_size       = sizeof(GoProMaxOpenCLContext),
     .priv_class      = &gopromax_opencl_class,
     .init            = &gopromax_opencl_init,
