@@ -28,8 +28,11 @@
 #include "opencl_source.h"
 #include "video.h"
 
+#define _WIDTH 5376
+#define _HEIGHT 2688
 #define OVERLAP 64
 #define CUT 688
+#define BASESIZE 4096 //OVERLAP and CUT are based on this size
 
 typedef struct GoProMaxOpenCLContext {
     OpenCLFilterContext ocf;
@@ -45,8 +48,7 @@ typedef struct GoProMaxOpenCLContext {
     int              y_subsample;
     int              alpha_separate;
 
-    int              x_position;
-    int              y_position;
+    int              eac_output;
 } GoProMaxOpenCLContext;
 
 static int gopromax_opencl_load(AVFilterContext *avctx,
@@ -74,26 +76,14 @@ static int gopromax_opencl_load(AVFilterContext *avctx,
     ctx->x_subsample = 1 << gopromax_front_desc->log2_chroma_w;
     ctx->y_subsample = 1 << gopromax_front_desc->log2_chroma_h;
 
-    if (ctx->x_position % ctx->x_subsample ||
-        ctx->y_position % ctx->y_subsample) {
-        av_log(avctx, AV_LOG_WARNING, "Warning: gopromax position (%d, %d) "
-               "does not match subsampling (%d, %d).\n",
-               ctx->x_position, ctx->y_position,
-               ctx->x_subsample, ctx->y_subsample);
-    }
-
-   // if (gopromax_front_planes == gopromax_rear_planes) {
-   //     if (gopromax_front_desc->nb_components == gopromax_rear_desc->nb_components)
     
-            kernel = "gopromax_stack";
-
-   //     else
-   //         kernel = "gopromax_internal_alpha";
-   //     ctx->alpha_separate = 0;
-   // } else {
-   //     kernel = "gopromax_external_alpha";
-   //     ctx->alpha_separate = 1;
-   // }
+    if (ctx->eac_output >0 )
+            {
+                kernel = "gopromax_stack";
+            }
+    else {
+        kernel = "gopromax_equirectangular";
+    }
 
     av_log(avctx, AV_LOG_DEBUG, "Using kernel %s.\n", kernel);
 
@@ -214,8 +204,7 @@ static int gopromax_opencl_config_output(AVFilterLink *outlink)
     av_log(avctx, AV_LOG_VERBOSE,"Geting filtercontext\n");
     AVFilterLink *inlink = avctx->inputs[0];
     const AVPixFmtDescriptor *desc_in  = av_pix_fmt_desc_get(inlink->format);
-    AVRational frame_rate = avctx->inputs[0]->frame_rate;
-    AVRational sar = avctx->inputs[0]->sample_aspect_ratio;
+ 
     int height = avctx->inputs[0]->h;
     int width = avctx->inputs[0]->w;
     int err;
@@ -226,8 +215,17 @@ static int gopromax_opencl_config_output(AVFilterLink *outlink)
         return AVERROR(EINVAL);
     }
     
-    ctx->ocf.output_width = width - 2*OVERLAP;
-    ctx->ocf.output_height = 2*height;
+    if (ctx->eac_output==0)
+    {
+        ctx->ocf.output_width = 4*height;
+        ctx->ocf.output_height = 2*height;
+    }
+    else
+    {
+        int overlap = width *  OVERLAP / BASESIZE;
+        ctx->ocf.output_width = width - 2*overlap;
+        ctx->ocf.output_height = 2*height;
+    }
 
     err = ff_opencl_filter_config_output(outlink);
     av_log(avctx, AV_LOG_VERBOSE,"Output config ok w=%d h=%d err=%d\n",outlink->w, outlink->h, err);
@@ -285,10 +283,8 @@ static av_cold void gopromax_opencl_uninit(AVFilterContext *avctx)
 #define OFFSET(x) offsetof(GoProMaxOpenCLContext, x)
 #define FLAGS (AV_OPT_FLAG_FILTERING_PARAM | AV_OPT_FLAG_VIDEO_PARAM)
 static const AVOption gopromax_opencl_options[] = {
-    { "x", "GoProMax x position",
-      OFFSET(x_position), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, .flags = FLAGS },
-    { "y", "GoProMax y position",
-      OFFSET(y_position), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, .flags = FLAGS },
+    { "eac", "output Equiangular cubemap",
+      OFFSET(eac_output), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, .flags = FLAGS },
     { NULL },
 };
 
