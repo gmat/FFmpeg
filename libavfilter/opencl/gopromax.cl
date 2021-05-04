@@ -111,24 +111,31 @@ __kernel void gopromax_stack(__write_only image2d_t dst,
     write_imagef(dst, loc, val);
 }
 #else
-float2 get_spherical_coordinates(int2 xy, int2 size);
+#define FOV 360.0f
 float3 get_cartesian_coordinates(float2 phi_theta);
 
-float2 get_spherical_coordinates(int2 xy, int2 size)
+float3 equirect_to_xyz(int2 xy,int2 size);
+float3 equirect_to_xyz(int2 xy,int2 size)
 {
+    float3 xyz;
+    float phi   = ((2.f * xy.x + 0.5f) / size.x  - 1.f) * FOV * PI /360;
+    float theta = ((2.f * xy.y + 0.5f) / size.y - 1.f) * FOV * PI /360;
+    float sin_phi   = sin(phi);
+    float cos_phi   = cos(phi);
+    float sin_theta = sin(theta);
+    float cos_theta = cos(theta);
 
-    
-    float phi =  (1.0-2.0*((float)xy.y/(float)size.y))/2.0 * PI;
-    
-    float theta = (2.0*((float)xy.x/(float)size.x)-1.0) * PI;
-    return (float2)(phi,theta);
-    
+    xyz.x = cos_theta * sin_phi;
+    xyz.y = sin_theta;
+    xyz.z = cos_theta * cos_phi;
+    return xyz;
 }
+
 
 float3 get_cartesian_coordinates(float2 phi_theta)
 {
     float x = cos(phi_theta.x) * cos(phi_theta.y);
-    float y = sin(phi_theta.x);
+    float y = sin(phi_theta.y);
     float z = cos(phi_theta.x) * sin(phi_theta.y);
     return (float3)(x,y,z);
 }
@@ -140,8 +147,8 @@ const sampler_t sampler = (CLK_NORMALIZED_COORDS_FALSE |
 int2 normalize_face_coordinates(float2 uv, int face_size)
 {
         float2 xy;
-        xy.x= 0.5*(uv.x+1)*face_size;
-        xy.y= 0.5*(uv.y+1)*face_size;
+        xy.x= 0.5*(uv.x+1.0f)*face_size;
+        xy.y= 0.5*(uv.y+1.0f)*face_size;
         return (int2)( (int)(xy.x), (int)(xy.y) );
 }
 
@@ -228,8 +235,7 @@ __kernel void gopromax_stack(__write_only image2d_t dst,
     int2 dst_size = get_image_dim(dst);
     int2 src_size = get_image_dim(gopromax_front);
     
-    float2 phi_theta = get_spherical_coordinates(loc,dst_size);
-    float3 xyz = get_cartesian_coordinates(phi_theta);
+    float3 xyz = equirect_to_xyz(loc,dst_size);
     val = get_val_at_src_local_coordinates(xyz,gopromax_front, gopromax_rear);
 
     write_imagef(dst, loc, val);
