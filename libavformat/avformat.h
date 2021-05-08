@@ -1002,29 +1002,6 @@ typedef struct AVStream {
      */
     int64_t first_dts;
     int64_t cur_dts;
-    int64_t last_IP_pts;
-    int last_IP_duration;
-
-    /**
-     * Number of packets to buffer for codec probing
-     */
-    int probe_packets;
-
-    /**
-     * Number of frames that have been demuxed during avformat_find_stream_info()
-     */
-    int codec_info_nb_frames;
-
-    /* av_read_frame() support */
-    enum AVStreamParseType need_parsing;
-    struct AVCodecParserContext *parser;
-
-    /**
-     * Stream Identifier
-     * This is the MPEG-TS stream identifier +1
-     * 0 means unknown
-     */
-    int stream_identifier;
 
     /**
      * An opaque field for libavformat internal usage.
