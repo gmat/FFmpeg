@@ -1,3 +1,15 @@
+Why another Fork ?
+==================
+  
+I added an OpenCL filter for converting GoPro Max pseudo EAC native .360 clips into standard equirectangular projected clips.  
+Why OpenCL ?  
+Each pixels need to be remaped with some time consuming math functions. So GPU computing seems to be the only effective solution.  
+  
+## How to use ?  
+ 
+* sample GoPro max to equirectangular projection and compress with libx264
+* ./ffmpeg -hwaccel auto -hwaccel auto -init_hw_device opencl:0.2 -filter_hw_device opencl0 -v verbose  -filter_complex '[0:0]format=yuv420p,hwupload[a] , [0:4]format=yuv420p,hwupload[b], [a][b]gopromax_opencl, hwdownload,format=yuv420p' -i GS010001.360  -c:v libx264 out.mp4
+    
 FFmpeg README
 =============
 
