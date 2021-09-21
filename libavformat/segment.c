@@ -952,7 +952,9 @@ calc_times:
                            seg->initial_offset || seg->reset_timestamps || seg->avf->oformat->interleave_packet);
 
 fail:
-    if (pkt->stream_index == seg->reference_stream_index) {
+    /* Use st->index here as the packet returned from ff_write_chained()
+     * is blank if interleaving has been used. */
+    if (st->index == seg->reference_stream_index) {
         seg->frame_count++;
         seg->segment_frame_count++;
     }
@@ -989,10 +991,10 @@ static int seg_check_bitstream(struct AVFormatContext *s, const AVPacket *pkt)
     if (oc->oformat->check_bitstream) {
         int ret = oc->oformat->check_bitstream(oc, pkt);
         if (ret == 1) {
-            AVStream *st = s->streams[pkt->stream_index];
-            AVStream *ost = oc->streams[pkt->stream_index];
-            st->internal->bsfc = ost->internal->bsfc;
-            ost->internal->bsfc = NULL;
+            FFStream *const  sti = ffstream( s->streams[pkt->stream_index]);
+            FFStream *const osti = ffstream(oc->streams[pkt->stream_index]);
+             sti->bsfc = osti->bsfc;
+            osti->bsfc = NULL;
         }
         return ret;
     }
@@ -1045,14 +1047,14 @@ static const AVOption options[] = {
     { NULL },
 };
 
-#if CONFIG_SEGMENT_MUXER
 static const AVClass seg_class = {
-    .class_name = "segment muxer",
+    .class_name = "(stream) segment muxer",
     .item_name  = av_default_item_name,
     .option     = options,
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
+#if CONFIG_SEGMENT_MUXER
 const AVOutputFormat ff_segment_muxer = {
     .name           = "segment",
     .long_name      = NULL_IF_CONFIG_SMALL("segment"),
@@ -1069,13 +1071,6 @@ const AVOutputFormat ff_segment_muxer = {
 #endif
 
 #if CONFIG_STREAM_SEGMENT_MUXER
-static const AVClass sseg_class = {
-    .class_name = "stream_segment muxer",
-    .item_name  = av_default_item_name,
-    .option     = options,
-    .version    = LIBAVUTIL_VERSION_INT,
-};
-
 const AVOutputFormat ff_stream_segment_muxer = {
     .name           = "stream_segment,ssegment",
     .long_name      = NULL_IF_CONFIG_SMALL("streaming segment muxer"),
@@ -1087,6 +1082,6 @@ const AVOutputFormat ff_stream_segment_muxer = {
     .write_trailer  = seg_write_trailer,
     .deinit         = seg_free,
     .check_bitstream = seg_check_bitstream,
-    .priv_class     = &sseg_class,
+    .priv_class     = &seg_class,
 };
 #endif

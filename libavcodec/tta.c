@@ -29,6 +29,7 @@
 
 #include <limits.h>
 
+#include "libavutil/channel_layout.h"
 #include "libavutil/crc.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/opt.h"
@@ -106,7 +107,8 @@ static int allocate_buffers(AVCodecContext *avctx)
     TTAContext *s = avctx->priv_data;
 
     if (s->bps < 3) {
-        s->decode_buffer = av_mallocz_array(sizeof(int32_t)*s->frame_length, s->channels);
+        s->decode_buffer = av_calloc(s->frame_length,
+                                     sizeof(*s->decode_buffer) * s->channels);
         if (!s->decode_buffer)
             return AVERROR(ENOMEM);
     } else

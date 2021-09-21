@@ -182,7 +182,7 @@ static int ready_codebook(vorbis_enc_codebook *cb)
     } else {
         int vals = cb_lookup_vals(cb->lookup, cb->ndimensions, cb->nentries);
         cb->dimensions = av_malloc_array(cb->nentries, sizeof(float) * cb->ndimensions);
-        cb->pow2 = av_mallocz_array(cb->nentries, sizeof(float));
+        cb->pow2 = av_calloc(cb->nentries, sizeof(*cb->pow2));
         if (!cb->dimensions || !cb->pow2)
             return AVERROR(ENOMEM);
         for (i = 0; i < cb->nentries; i++) {
@@ -212,7 +212,7 @@ static int ready_residue(vorbis_enc_residue *rc, vorbis_enc_context *venc)
 {
     int i;
     av_assert0(rc->type == 2);
-    rc->maxes = av_mallocz_array(rc->classifications, sizeof(float[2]));
+    rc->maxes = av_calloc(rc->classifications, sizeof(*rc->maxes));
     if (!rc->maxes)
         return AVERROR(ENOMEM);
     for (i = 0; i < rc->classifications; i++) {
@@ -1287,6 +1287,7 @@ static av_cold int vorbis_encode_init(AVCodecContext *avctx)
     avctx->extradata_size = ret;
 
     avctx->frame_size = 64;
+    avctx->initial_padding = 1 << (venc->log2_blocksize[1] - 1);
 
     ff_af_queue_init(avctx, &venc->afq);
 

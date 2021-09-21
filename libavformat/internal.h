@@ -23,9 +23,8 @@
 
 #include <stdint.h>
 
-#include "libavutil/bprint.h"
-
 #include "libavcodec/avcodec.h"
+#include "libavcodec/bsf.h"
 
 #include "avformat.h"
 #include "os_support.h"
@@ -41,6 +40,12 @@
 #else
 #    define hex_dump_debug(class, buf, size) do { if (0) av_hex_dump_log(class, AV_LOG_DEBUG, buf, size); } while(0)
 #endif
+
+/**
+ * For an AVInputFormat with this flag set read_close() needs to be called
+ * by the caller upon read_header() failure.
+ */
+#define FF_FMT_INIT_CLEANUP                             (1 << 0)
 
 typedef struct AVCodecTag {
     enum AVCodecID id;
@@ -64,7 +69,12 @@ typedef struct FFFrac {
 } FFFrac;
 
 
-struct AVFormatInternal {
+typedef struct FFFormatContext {
+    /**
+     * The public context.
+     */
+    AVFormatContext pub;
+
     /**
      * Number of streams relevant for interleaving.
      * Muxing only.
@@ -168,9 +178,19 @@ struct AVFormatInternal {
      * Set if chapter ids are strictly monotonic.
      */
     int chapter_ids_monotonic;
-};
+} FFFormatContext;
 
-struct AVStreamInternal {
+static av_always_inline FFFormatContext *ffformatcontext(AVFormatContext *s)
+{
+    return (FFFormatContext*)s;
+}
+
+typedef struct FFStream {
+    /**
+     * The public context.
+     */
+    AVStream pub;
+
     /**
      * Set to 1 if the codec allows reordering, so pts can be different
      * from dts.
@@ -197,8 +217,6 @@ struct AVStreamInternal {
      * 1 if avctx has been initialized with the values from the codec parameters
      */
     int avctx_inited;
-
-    enum AVCodecID orig_codec_id;
 
     /* the context for extracting extradata in find_stream_info()
      * inited=1/bsf=NULL signals that extracting is not possible (codec not
@@ -403,7 +421,17 @@ struct AVStreamInternal {
      */
     int64_t first_dts;
     int64_t cur_dts;
-};
+} FFStream;
+
+static av_always_inline FFStream *ffstream(AVStream *st)
+{
+    return (FFStream*)st;
+}
+
+static av_always_inline const FFStream *cffstream(const AVStream *st)
+{
+    return (FFStream*)st;
+}
 
 void avpriv_stream_set_need_parsing(AVStream *st, enum AVStreamParseType type);
 
@@ -421,6 +449,24 @@ do {\
     av_dynarray_add((tab), nb_ptr, (elem));\
 } while(0)
 #endif
+
+#define RELATIVE_TS_BASE (INT64_MAX - (1LL << 48))
+
+static av_always_inline int is_relative(int64_t ts)
+{
+    return ts > (RELATIVE_TS_BASE - (1LL << 48));
+}
+
+/**
+ * Wrap a given time stamp, if there is an indication for an overflow
+ *
+ * @param st stream
+ * @param timestamp the time stamp to wrap
+ * @return resulting time stamp
+ */
+int64_t ff_wrap_timestamp(const AVStream *st, int64_t timestamp);
+
+void ff_flush_packet_queue(AVFormatContext *s);
 
 /**
  * Automatically create sub-directories
@@ -503,7 +549,8 @@ void ff_sdp_write_media(char *buff, int size, AVStream *st, int idx,
  *
  * @param dst the muxer to write the packet to
  * @param dst_stream the stream index within dst to write the packet to
- * @param pkt the packet to be written
+ * @param pkt the packet to be written. It will be returned blank when
+ *            av_interleaved_write_frame() is used, unchanged otherwise.
  * @param src the muxer the packet originally was intended for
  * @param interleave 0->use av_write_frame, 1->av_interleaved_write_frame
  * @return the value av_write_frame returned
@@ -533,32 +580,6 @@ int ff_get_line(AVIOContext *s, char *buf, int maxlen);
  * @return the length of the string written in the buffer
  */
 int ff_get_chomp_line(AVIOContext *s, char *buf, int maxlen);
-
-/**
- * Read a whole line of text from AVIOContext to an AVBPrint buffer. Stop
- * reading after reaching a \\r, a \\n, a \\r\\n, a \\0 or EOF.  The line
- * ending characters are NOT included in the buffer, but they are skipped on
- * the input.
- *
- * @param s the read-only AVIOContext
- * @param bp the AVBPrint buffer
- * @return the length of the read line, not including the line endings,
- *         negative on error.
- */
-int64_t ff_read_line_to_bprint(AVIOContext *s, AVBPrint *bp);
-
-/**
- * Read a whole line of text from AVIOContext to an AVBPrint buffer overwriting
- * its contents. Stop reading after reaching a \\r, a \\n, a \\r\\n, a \\0 or
- * EOF. The line ending characters are NOT included in the buffer, but they
- * are skipped on the input.
- *
- * @param s the read-only AVIOContext
- * @param bp the AVBPrint buffer
- * @return the length of the read line not including the line endings,
- *         negative on error, or if the buffer becomes truncated.
- */
-int64_t ff_read_line_to_bprint_overwrite(AVIOContext *s, AVBPrint *bp);
 
 #define SPACE_CHARS " \t\r\n"
 
@@ -631,6 +652,8 @@ void ff_reduce_index(AVFormatContext *s, int stream_index);
 
 enum AVCodecID ff_guess_image2_codec(const char *filename);
 
+const AVCodec *ff_find_decoder(AVFormatContext *s, const AVStream *st,
+                               enum AVCodecID codec_id);
 /**
  * Perform a binary search using av_index_search_timestamp() and
  * AVInputFormat.read_timestamp().
@@ -673,13 +696,13 @@ int64_t ff_gen_search(AVFormatContext *s, int stream_index,
  * (numerator or denominator are non-positive), it leaves the stream
  * unchanged.
  *
- * @param s stream
+ * @param st stream
  * @param pts_wrap_bits number of bits effectively used by the pts
  *        (used for wrap control)
  * @param pts_num time base numerator
  * @param pts_den time base denominator
  */
-void avpriv_set_pts_info(AVStream *s, int pts_wrap_bits,
+void avpriv_set_pts_info(AVStream *st, int pts_wrap_bits,
                          unsigned int pts_num, unsigned int pts_den);
 
 /**
@@ -737,12 +760,6 @@ int ff_interleave_packet_per_dts(AVFormatContext *s, AVPacket *out,
                                  AVPacket *pkt, int flush);
 
 void ff_free_stream(AVFormatContext *s, AVStream *st);
-
-/**
- * Return the frame duration in seconds. Return 0 if not available.
- */
-void ff_compute_frame_duration(AVFormatContext *s, int *pnum, int *pden, AVStream *st,
-                               AVCodecParserContext *pc, AVPacket *pkt);
 
 unsigned int ff_codec_get_tag(const AVCodecTag *tags, enum AVCodecID id);
 
@@ -939,6 +956,7 @@ int ff_reshuffle_raw_rgb(AVFormatContext *s, AVPacket **ppkt, AVCodecParameters 
  */
 int ff_get_packet_palette(AVFormatContext *s, AVPacket *pkt, int ret, uint32_t *palette);
 
+struct AVBPrint;
 /**
  * Finalize buf into extradata and set its size appropriately.
  */

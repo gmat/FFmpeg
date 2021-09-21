@@ -24,7 +24,6 @@
  */
 
 #include "libavutil/audio_fifo.h"
-#include "libavutil/avassert.h"
 #include "libavutil/channel_layout.h"
 #include "libavutil/opt.h"
 #include "avfilter.h"
@@ -86,6 +85,8 @@ static const AVOption options[] = {
     { "level_sc",  "set sidechain gain",     OFFSET(level_sc),  AV_OPT_TYPE_DOUBLE, {.dbl=1},           0.015625,   64, A },
     { NULL }
 };
+
+AVFILTER_DEFINE_CLASS_EXT(agate_sidechaingate, "agate/sidechaingate", options);
 
 static int agate_config_input(AVFilterLink *inlink)
 {
@@ -184,13 +185,9 @@ static void gate(AudioGateContext *s,
 
 #if CONFIG_AGATE_FILTER
 
-#define agate_options options
-AVFILTER_DEFINE_CLASS(agate);
-
 static int query_formats(AVFilterContext *ctx)
 {
     AVFilterFormats *formats = NULL;
-    AVFilterChannelLayouts *layouts;
     int ret;
 
     if ((ret = ff_add_format(&formats, AV_SAMPLE_FMT_DBL)) < 0)
@@ -199,18 +196,11 @@ static int query_formats(AVFilterContext *ctx)
     if (ret < 0)
         return ret;
 
-    layouts = ff_all_channel_counts();
-    if (!layouts)
-        return AVERROR(ENOMEM);
-    ret = ff_set_common_channel_layouts(ctx, layouts);
+    ret = ff_set_common_all_channel_counts(ctx);
     if (ret < 0)
         return ret;
 
-    formats = ff_all_samplerates();
-    if (!formats)
-        return AVERROR(ENOMEM);
-
-    return ff_set_common_samplerates(ctx, formats);
+    return ff_set_common_all_samplerates(ctx);
 }
 
 static int filter_frame(AVFilterLink *inlink, AVFrame *in)
@@ -249,7 +239,6 @@ static const AVFilterPad inputs[] = {
         .filter_frame = filter_frame,
         .config_props = agate_config_input,
     },
-    { NULL }
 };
 
 static const AVFilterPad outputs[] = {
@@ -257,17 +246,16 @@ static const AVFilterPad outputs[] = {
         .name = "default",
         .type = AVMEDIA_TYPE_AUDIO,
     },
-    { NULL }
 };
 
 const AVFilter ff_af_agate = {
     .name           = "agate",
     .description    = NULL_IF_CONFIG_SMALL("Audio gate."),
+    .priv_class     = &agate_sidechaingate_class,
     .query_formats  = query_formats,
     .priv_size      = sizeof(AudioGateContext),
-    .priv_class     = &agate_class,
-    .inputs         = inputs,
-    .outputs        = outputs,
+    FILTER_INPUTS(inputs),
+    FILTER_OUTPUTS(outputs),
     .process_command = ff_filter_process_command,
     .flags          = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
 };
@@ -275,9 +263,6 @@ const AVFilter ff_af_agate = {
 #endif /* CONFIG_AGATE_FILTER */
 
 #if CONFIG_SIDECHAINGATE_FILTER
-
-#define sidechaingate_options options
-AVFILTER_DEFINE_CLASS(sidechaingate);
 
 static int activate(AVFilterContext *ctx)
 {
@@ -347,7 +332,6 @@ static int activate(AVFilterContext *ctx)
 
 static int scquery_formats(AVFilterContext *ctx)
 {
-    AVFilterFormats *formats;
     AVFilterChannelLayouts *layouts = NULL;
     static const enum AVSampleFormat sample_fmts[] = {
         AV_SAMPLE_FMT_DBL,
@@ -372,12 +356,10 @@ static int scquery_formats(AVFilterContext *ctx)
             return ret;
     }
 
-    formats = ff_make_format_list(sample_fmts);
-    if ((ret = ff_set_common_formats(ctx, formats)) < 0)
+    if ((ret = ff_set_common_formats_from_list(ctx, sample_fmts)) < 0)
         return ret;
 
-    formats = ff_all_samplerates();
-    return ff_set_common_samplerates(ctx, formats);
+    return ff_set_common_all_samplerates(ctx);
 }
 
 static int scconfig_output(AVFilterLink *outlink)
@@ -425,7 +407,6 @@ static const AVFilterPad sidechaingate_inputs[] = {
         .name           = "sidechain",
         .type           = AVMEDIA_TYPE_AUDIO,
     },
-    { NULL }
 };
 
 static const AVFilterPad sidechaingate_outputs[] = {
@@ -434,19 +415,18 @@ static const AVFilterPad sidechaingate_outputs[] = {
         .type          = AVMEDIA_TYPE_AUDIO,
         .config_props  = scconfig_output,
     },
-    { NULL }
 };
 
 const AVFilter ff_af_sidechaingate = {
     .name           = "sidechaingate",
     .description    = NULL_IF_CONFIG_SMALL("Audio sidechain gate."),
+    .priv_class     = &agate_sidechaingate_class,
     .priv_size      = sizeof(AudioGateContext),
-    .priv_class     = &sidechaingate_class,
     .query_formats  = scquery_formats,
     .activate       = activate,
     .uninit         = uninit,
-    .inputs         = sidechaingate_inputs,
-    .outputs        = sidechaingate_outputs,
+    FILTER_INPUTS(sidechaingate_inputs),
+    FILTER_OUTPUTS(sidechaingate_outputs),
     .process_command = ff_filter_process_command,
     .flags          = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
 };

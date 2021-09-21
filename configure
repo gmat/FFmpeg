@@ -488,6 +488,7 @@ Developer options (useful when working on FFmpeg itself):
   --ignore-tests=TESTS     comma-separated list (without "fate-" prefix
                            in the name) of tests whose result is ignored
   --enable-linux-perf      enable Linux Performance Monitor API
+  --enable-macos-kperf     enable macOS kperf (private) API
   --disable-large-tests    disable tests that use a large amount of memory
   --disable-ptx-compression don't compress CUDA PTX code even when possible
 
@@ -1764,7 +1765,6 @@ EXTERNAL_LIBRARY_GPL_LIST="
 EXTERNAL_LIBRARY_NONFREE_LIST="
     decklink
     libfdk_aac
-    openssl
     libtls
 "
 
@@ -1856,6 +1856,7 @@ EXTERNAL_LIBRARY_LIST="
     mediacodec
     openal
     opengl
+    openssl
     pocketsphinx
     vapoursynth
 "
@@ -1977,6 +1978,7 @@ CONFIG_LIST="
     fontconfig
     large_tests
     linux_perf
+    macos_kperf
     memory_poisoning
     neon_clobber_test
     ossfuzz
@@ -2370,6 +2372,7 @@ HAVE_LIST="
     perl
     pod2man
     texi2html
+    xmllint
     zlib_gzip
 "
 
@@ -2949,7 +2952,7 @@ d3d11va_deps="dxva_h ID3D11VideoDecoder ID3D11VideoContext"
 dxva2_deps="dxva2api_h DXVA2_ConfigPictureDecode ole32 user32"
 ffnvcodec_deps_any="libdl LoadLibrary"
 nvdec_deps="ffnvcodec"
-vaapi_x11_deps="xlib"
+vaapi_x11_deps="xlib_x11"
 videotoolbox_hwaccel_deps="videotoolbox pthreads"
 videotoolbox_hwaccel_extralibs="-framework QuartzCore"
 vulkan_deps_any="libdl LoadLibrary"
@@ -3316,7 +3319,7 @@ libwebp_anim_encoder_deps="libwebp"
 libx262_encoder_deps="libx262"
 libx264_encoder_deps="libx264"
 libx264_encoder_select="atsc_a53"
-libx264rgb_encoder_deps="libx264 x264_csp_bgr"
+libx264rgb_encoder_deps="libx264"
 libx264rgb_encoder_select="libx264_encoder"
 libx265_encoder_deps="libx265"
 libxavs_encoder_deps="libxavs"
@@ -3385,6 +3388,7 @@ mxf_opatom_muxer_select="mxf_muxer"
 nut_muxer_select="riffenc"
 nuv_demuxer_select="riffdec"
 obu_demuxer_select="av1_frame_merge_bsf av1_parser"
+obu_muxer_select="av1_metadata_bsf"
 oga_muxer_select="ogg_muxer"
 ogg_demuxer_select="dirac_parse"
 ogv_muxer_select="ogg_muxer"
@@ -3470,7 +3474,7 @@ v4l2_outdev_suggest="libv4l2"
 vfwcap_indev_deps="vfw32 vfwcap_defines"
 xcbgrab_indev_deps="libxcb"
 xcbgrab_indev_suggest="libxcb_shm libxcb_shape libxcb_xfixes"
-xv_outdev_deps="xlib"
+xv_outdev_deps="xlib_xv xlib_x11 xlib_xext"
 
 # protocols
 async_protocol_deps="threads"
@@ -3539,16 +3543,11 @@ libzmq_protocol_deps="libzmq"
 libzmq_protocol_select="network"
 
 # filters
-afftdn_filter_deps="avcodec"
-afftdn_filter_select="fft"
-afftfilt_filter_deps="avcodec"
-afftfilt_filter_select="fft"
 afir_filter_deps="avcodec"
 afir_filter_select="rdft"
 ametadata_filter_deps="avformat"
 amovie_filter_deps="avcodec avformat"
 aresample_filter_deps="swresample"
-asoftclip_filter_deps="swresample"
 asr_filter_deps="pocketsphinx"
 ass_filter_deps="libass"
 atempo_filter_deps="avcodec"
@@ -3566,16 +3565,12 @@ chromaber_vulkan_filter_deps="vulkan_lib libglslang"
 colorkey_opencl_filter_deps="opencl"
 colormatrix_filter_deps="gpl"
 convolution_opencl_filter_deps="opencl"
-convolve_filter_deps="avcodec"
-convolve_filter_select="fft"
 coreimage_filter_deps="coreimage appkit"
 coreimage_filter_extralibs="-framework OpenGL"
 coreimagesrc_filter_deps="coreimage appkit"
 coreimagesrc_filter_extralibs="-framework OpenGL"
 cover_rect_filter_deps="avcodec avformat gpl"
 cropdetect_filter_deps="gpl"
-deconvolve_filter_deps="avcodec"
-deconvolve_filter_select="fft"
 deinterlace_qsv_filter_deps="libmfx"
 deinterlace_vaapi_filter_deps="vaapi"
 delogo_filter_deps="gpl"
@@ -3602,11 +3597,10 @@ firequalizer_filter_select="rdft"
 flite_filter_deps="libflite"
 framerate_filter_select="scene_sad"
 freezedetect_filter_select="scene_sad"
-frei0r_filter_deps="frei0r libdl"
-frei0r_src_filter_deps="frei0r libdl"
+frei0r_deps_any="libdl LoadLibrary"
+frei0r_filter_deps="frei0r"
+frei0r_src_filter_deps="frei0r"
 fspp_filter_deps="gpl"
-headphone_filter_deps="avcodec"
-headphone_filter_select="fft"
 histeq_filter_deps="gpl"
 hqdn3d_filter_deps="gpl"
 interlace_filter_deps="gpl"
@@ -3653,26 +3647,16 @@ scale_qsv_filter_deps="libmfx"
 scdet_filter_select="scene_sad"
 select_filter_select="scene_sad"
 sharpness_vaapi_filter_deps="vaapi"
-showcqt_filter_deps="avcodec avformat swscale"
+showcqt_filter_deps="avformat swscale"
 showcqt_filter_suggest="libfontconfig libfreetype"
-showcqt_filter_select="fft"
-showfreqs_filter_deps="avcodec"
-showfreqs_filter_select="fft"
 showspatial_filter_deps="avcodec"
 showspatial_filter_select="fft"
-showspectrum_filter_deps="avcodec"
-showspectrum_filter_select="fft"
-showspectrumpic_filter_deps="avcodec"
-showspectrumpic_filter_select="fft"
 signature_filter_deps="gpl avcodec avformat"
 sinc_filter_deps="avcodec"
 sinc_filter_select="rdft"
 smartblur_filter_deps="gpl swscale"
 sobel_opencl_filter_deps="opencl"
-sofalizer_filter_deps="libmysofa avcodec"
-sofalizer_filter_select="fft"
-spectrumsynth_filter_deps="avcodec"
-spectrumsynth_filter_select="fft"
+sofalizer_filter_deps="libmysofa"
 spp_filter_deps="gpl avcodec"
 spp_filter_select="fft idctdsp fdctdsp me_cmp pixblockdsp"
 sr_filter_deps="avformat swscale"
@@ -3742,7 +3726,6 @@ cws2fws_extralibs="zlib_extralibs"
 # libraries, in any order
 avcodec_deps="avutil"
 avcodec_suggest="libm"
-avcodec_select="null_bsf"
 avdevice_deps="avformat avcodec avutil"
 avdevice_suggest="libm"
 avfilter_deps="avutil"
@@ -5026,9 +5009,11 @@ elif enabled arm; then
         fi
     }
 
-    [ "$cpu" = generic ] && cpu=$(probe_arm_arch)
 
     case $cpu in
+        generic)
+            subarch=$(probe_arm_arch | sed 's/[^a-z0-9]//g')
+        ;;
         armv*)
             cpuflags="-march=$cpu"
             subarch=$(echo $cpu | sed 's/[^a-z0-9]//g')
@@ -5960,7 +5945,7 @@ elif enabled mips; then
     enabled loongson3 && check_inline_asm loongson3 '"gsldxc1 $f0, 0($2, $3)"' '-mloongson-ext' && append MMIFLAGS '-mloongson-ext'
 
     # MMI can be detected at runtime too
-    enabled mmi && check_inline_asm mmi '"punpcklhw $f0, $f0, $f0"' '-mloongson-mmi' && append MMIFLAGS '-mloongson-mmi'
+    enabled mmi && check_inline_asm mmi '"pxor $f0, $f0, $f0"' '-mloongson-mmi' && append MMIFLAGS '-mloongson-mmi'
 
     if enabled bigendian && enabled msa; then
         disable msa
@@ -6132,7 +6117,6 @@ check_builtin MemoryBarrier windows.h "MemoryBarrier()"
 check_builtin sync_val_compare_and_swap "" "int *ptr; int oldval, newval; __sync_val_compare_and_swap(ptr, oldval, newval)"
 check_builtin gmtime_r time.h "time_t *time; struct tm *tm; gmtime_r(time, tm)"
 check_builtin localtime_r time.h "time_t *time; struct tm *tm; localtime_r(time, tm)"
-check_builtin x264_csp_bgr "stdint.h x264.h" "X264_CSP_BGR"
 
 case "$custom_allocator" in
     jemalloc)
@@ -6193,8 +6177,20 @@ check_func_headers windows.h SetDllDirectory
 check_func_headers windows.h Sleep
 check_func_headers windows.h VirtualAlloc
 check_func_headers glob.h glob
-enabled xlib &&
-    check_lib xlib "X11/Xlib.h X11/extensions/Xvlib.h" XvGetPortAttribute -lXv -lX11 -lXext
+
+if enabled xlib; then
+    check_pkg_config xlib_x11 x11 "X11/Xlib.h" XPending ||
+    check_lib xlib_x11 "X11/Xlib.h" XPending -lX11 ||
+        disable xlib
+
+    check_pkg_config xlib_xext xext "X11/Xlib.h X11/extensions/XShm.h" XShmAttach ||
+    check_lib xlib_xext "X11/Xlib.h X11/extensions/XShm.h" XShmAttach -lXext ||
+        disable xlib
+
+    check_pkg_config xlib_xv xv "X11/Xlib.h X11/extensions/Xvlib.h" XvGetPortAttribute ||
+    check_lib xlib_xv "X11/Xlib.h X11/extensions/Xvlib.h" XvGetPortAttribute -lXv ||
+        disable xlib
+fi
 
 check_headers direct.h
 check_headers dirent.h
@@ -6389,8 +6385,8 @@ enabled avisynth          && require_headers "avisynth/avisynth_c.h"
 enabled cuda_nvcc         && { check_nvcc cuda_nvcc || die "ERROR: failed checking for nvcc."; }
 enabled chromaprint       && require chromaprint chromaprint.h chromaprint_get_version -lchromaprint
 enabled decklink          && { require_headers DeckLinkAPI.h &&
-                               { test_cpp_condition DeckLinkAPIVersion.h "BLACKMAGIC_DECKLINK_API_VERSION >= 0x0a0a0000" || die "ERROR: Decklink API version must be >= 10.10"; } }
-enabled frei0r            && require_headers "frei0r.h dlfcn.h"
+                               { test_cpp_condition DeckLinkAPIVersion.h "BLACKMAGIC_DECKLINK_API_VERSION >= 0x0a0b0000" || die "ERROR: Decklink API version must be >= 10.11"; } }
+enabled frei0r            && require_headers "frei0r.h"
 enabled gmp               && require gmp gmp.h mpz_export -lgmp
 enabled gnutls            && require_pkg_config gnutls gnutls gnutls/gnutls.h gnutls_global_init
 enabled jni               && { [ $target_os = "android" ] && check_headers jni.h && enabled pthreads || die "ERROR: jni not found"; }
@@ -6579,7 +6575,10 @@ enabled omx_rpi           && { test_code cc OMX_Core.h OMX_IndexConfigBrcmVideoR
                                die "ERROR: OpenMAX IL headers from raspberrypi/firmware not found"; } &&
                              enable omx
 enabled omx               && require_headers OMX_Core.h
-enabled openssl           && { check_pkg_config openssl openssl openssl/ssl.h OPENSSL_init_ssl ||
+enabled openssl           && { { check_pkg_config openssl "openssl >= 3.0.0" openssl/ssl.h OPENSSL_init_ssl &&
+                                 { enabled gplv3 || ! enabled gpl || enabled nonfree || die "ERROR: OpenSSL >=3.0.0 requires --enable-version3"; }; } ||
+                               { enabled gpl && ! enabled nonfree && die "ERROR: OpenSSL <3.0.0 is incompatible with the gpl"; } ||
+                               check_pkg_config openssl openssl openssl/ssl.h OPENSSL_init_ssl ||
                                check_pkg_config openssl openssl openssl/ssl.h SSL_library_init ||
                                check_lib openssl openssl/ssl.h OPENSSL_init_ssl -lssl -lcrypto ||
                                check_lib openssl openssl/ssl.h SSL_library_init -lssl -lcrypto ||
@@ -6655,6 +6654,7 @@ disabled makeinfo_html && texi2html --help 2> /dev/null | grep -q 'init-file' &&
 perl -v            > /dev/null 2>&1 && enable perl      || disable perl
 pod2man --help     > /dev/null 2>&1 && enable pod2man   || disable pod2man
 rsync --help 2> /dev/null | grep -q 'contimeout' && enable rsync_contimeout || disable rsync_contimeout
+xmllint --version  > /dev/null 2>&1 && enable xmllint   || disable xmllint
 
 # check V4L2 codecs available in the API
 if enabled v4l2_m2m; then
@@ -6750,7 +6750,7 @@ enabled vaapi &&
 if enabled vaapi; then
     check_pkg_config vaapi_drm "libva-drm" "va/va_drm.h" vaGetDisplayDRM
 
-    if enabled xlib; then
+    if enabled xlib_x11; then
         check_pkg_config vaapi_x11 "libva-x11" "va/va_x11.h" vaGetDisplay
     fi
 
@@ -7253,16 +7253,12 @@ done
 enabled zlib && add_cppflags -DZLIB_CONST
 
 # conditional library dependencies, in any order
-enabled afftdn_filter       && prepend avfilter_deps "avcodec"
-enabled afftfilt_filter     && prepend avfilter_deps "avcodec"
 enabled afir_filter         && prepend avfilter_deps "avcodec"
 enabled amovie_filter       && prepend avfilter_deps "avformat avcodec"
 enabled aresample_filter    && prepend avfilter_deps "swresample"
 enabled atempo_filter       && prepend avfilter_deps "avcodec"
 enabled bm3d_filter         && prepend avfilter_deps "avcodec"
 enabled cover_rect_filter   && prepend avfilter_deps "avformat avcodec"
-enabled convolve_filter     && prepend avfilter_deps "avcodec"
-enabled deconvolve_filter   && prepend avfilter_deps "avcodec"
 enabled ebur128_filter && enabled swresample && prepend avfilter_deps "swresample"
 enabled elbg_filter         && prepend avfilter_deps "avcodec"
 enabled fftfilt_filter      && prepend avfilter_deps "avcodec"
@@ -7276,13 +7272,9 @@ enabled removelogo_filter   && prepend avfilter_deps "avformat avcodec swscale"
 enabled sab_filter          && prepend avfilter_deps "swscale"
 enabled scale_filter    && prepend avfilter_deps "swscale"
 enabled scale2ref_filter    && prepend avfilter_deps "swscale"
-enabled sofalizer_filter    && prepend avfilter_deps "avcodec"
-enabled showcqt_filter      && prepend avfilter_deps "avformat avcodec swscale"
-enabled showfreqs_filter    && prepend avfilter_deps "avcodec"
-enabled showspectrum_filter && prepend avfilter_deps "avcodec"
+enabled showcqt_filter      && prepend avfilter_deps "avformat swscale"
 enabled signature_filter    && prepend avfilter_deps "avcodec avformat"
 enabled smartblur_filter    && prepend avfilter_deps "swscale"
-enabled spectrumsynth_filter && prepend avfilter_deps "avcodec"
 enabled spp_filter          && prepend avfilter_deps "avcodec"
 enabled sr_filter           && prepend avfilter_deps "avformat swscale"
 enabled subtitles_filter    && prepend avfilter_deps "avformat avcodec"
@@ -7418,6 +7410,7 @@ echo "perl enabled              ${perl-no}"
 echo "pod2man enabled           ${pod2man-no}"
 echo "makeinfo enabled          ${makeinfo-no}"
 echo "makeinfo supports HTML    ${makeinfo_html-no}"
+echo "xmllint enabled           ${xmllint-no}"
 test -n "$random_seed" &&
     echo "random seed               ${random_seed}"
 echo

@@ -18,7 +18,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libavutil/avassert.h"
 #include "libavutil/avstring.h"
 #include "libavutil/common.h"
 #include "libavutil/internal.h"
@@ -145,7 +144,6 @@ static const AVFilterPad shuffleframes_inputs[] = {
         .type         = AVMEDIA_TYPE_VIDEO,
         .filter_frame = filter_frame,
     },
-    { NULL },
 };
 
 static const AVFilterPad shuffleframes_outputs[] = {
@@ -153,7 +151,6 @@ static const AVFilterPad shuffleframes_outputs[] = {
         .name = "default",
         .type = AVMEDIA_TYPE_VIDEO,
     },
-    { NULL },
 };
 
 const AVFilter ff_vf_shuffleframes = {
@@ -163,7 +160,7 @@ const AVFilter ff_vf_shuffleframes = {
     .priv_class    = &shuffleframes_class,
     .init          = init,
     .uninit        = uninit,
-    .inputs        = shuffleframes_inputs,
-    .outputs       = shuffleframes_outputs,
+    FILTER_INPUTS(shuffleframes_inputs),
+    FILTER_OUTPUTS(shuffleframes_outputs),
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
 };

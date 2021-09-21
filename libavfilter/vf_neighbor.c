@@ -73,7 +73,7 @@ static int query_formats(AVFilterContext *ctx)
         AV_PIX_FMT_NONE
     };
 
-    return ff_set_common_formats(ctx, ff_make_format_list(pix_fmts));
+    return ff_set_common_formats_from_list(ctx, pix_fmts);
 }
 
 static void erosion(uint8_t *dst, const uint8_t *p1, int width,
@@ -328,7 +328,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 
     td.in = in;
     td.out = out;
-    ctx->internal->execute(ctx, filter_slice, &td, NULL, FFMIN(s->planeheight[1], ff_filter_get_nb_threads(ctx)));
+    ff_filter_execute(ctx, filter_slice, &td, NULL,
+                      FFMIN(s->planeheight[1], ff_filter_get_nb_threads(ctx)));
 
     av_frame_free(&in);
     return ff_filter_frame(outlink, out);
@@ -341,7 +342,6 @@ static const AVFilterPad neighbor_inputs[] = {
         .filter_frame = filter_frame,
         .config_props = config_input,
     },
-    { NULL }
 };
 
 static const AVFilterPad neighbor_outputs[] = {
@@ -349,23 +349,20 @@ static const AVFilterPad neighbor_outputs[] = {
         .name = "default",
         .type = AVMEDIA_TYPE_VIDEO,
     },
-    { NULL }
 };
 
 #define OFFSET(x) offsetof(NContext, x)
 #define FLAGS AV_OPT_FLAG_FILTERING_PARAM|AV_OPT_FLAG_VIDEO_PARAM|AV_OPT_FLAG_RUNTIME_PARAM
 
-#define DEFINE_NEIGHBOR_FILTER(name_, description_)          \
-AVFILTER_DEFINE_CLASS(name_);                                \
-                                                             \
+#define DEFINE_NEIGHBOR_FILTER(name_, description_, priv_class_) \
 const AVFilter ff_vf_##name_ = {                                   \
     .name          = #name_,                                 \
     .description   = NULL_IF_CONFIG_SMALL(description_),     \
+    .priv_class    = &priv_class_##_class,                   \
     .priv_size     = sizeof(NContext),                       \
-    .priv_class    = &name_##_class,                         \
     .query_formats = query_formats,                          \
-    .inputs        = neighbor_inputs,                        \
-    .outputs       = neighbor_outputs,                       \
+    FILTER_INPUTS(neighbor_inputs),                          \
+    FILTER_OUTPUTS(neighbor_outputs),                        \
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC| \
                      AVFILTER_FLAG_SLICE_THREADS,            \
     .process_command = ff_filter_process_command,            \
@@ -385,30 +382,31 @@ static const AVOption options[] = {
     { NULL }
 };
 
+AVFILTER_DEFINE_CLASS_EXT(erosion_dilation, "erosion/dilation", options);
+
 #if CONFIG_EROSION_FILTER
 
-#define erosion_options options
-DEFINE_NEIGHBOR_FILTER(erosion, "Apply erosion effect.");
+DEFINE_NEIGHBOR_FILTER(erosion, "Apply erosion effect.", erosion_dilation);
 
 #endif /* CONFIG_EROSION_FILTER */
 
 #if CONFIG_DILATION_FILTER
 
-#define dilation_options options
-DEFINE_NEIGHBOR_FILTER(dilation, "Apply dilation effect.");
+DEFINE_NEIGHBOR_FILTER(dilation, "Apply dilation effect.", erosion_dilation);
 
 #endif /* CONFIG_DILATION_FILTER */
 
+AVFILTER_DEFINE_CLASS_EXT(deflate_inflate, "deflate/inflate",
+                          &options[DEINFLATE_OPTIONS_OFFSET]);
+
 #if CONFIG_DEFLATE_FILTER
 
-#define deflate_options &options[DEINFLATE_OPTIONS_OFFSET]
-DEFINE_NEIGHBOR_FILTER(deflate, "Apply deflate effect.");
+DEFINE_NEIGHBOR_FILTER(deflate, "Apply deflate effect.", deflate_inflate);
 
 #endif /* CONFIG_DEFLATE_FILTER */
 
 #if CONFIG_INFLATE_FILTER
 
-#define inflate_options &options[DEINFLATE_OPTIONS_OFFSET]
-DEFINE_NEIGHBOR_FILTER(inflate, "Apply inflate effect.");
+DEFINE_NEIGHBOR_FILTER(inflate, "Apply inflate effect.", deflate_inflate);
 
 #endif /* CONFIG_INFLATE_FILTER */

@@ -23,6 +23,7 @@
 #include "libavutil/avutil.h"
 #include "libavutil/avstring.h"
 #include "libavutil/opt.h"
+#include "libavcodec/bsf.h"
 #include "internal.h"
 #include "avformat.h"
 #include "avio_internal.h"
@@ -474,7 +475,7 @@ static int tee_write_header(AVFormatContext *avf)
             filename++;
     }
 
-    if (!(tee->slaves = av_mallocz_array(nb_slaves, sizeof(*tee->slaves)))) {
+    if (!FF_ALLOCZ_TYPED_ARRAY(tee->slaves, nb_slaves)) {
         ret = AVERROR(ENOMEM);
         goto fail;
     }

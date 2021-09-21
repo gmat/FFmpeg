@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include "libavutil/channel_layout.h"
 #include "libavutil/intreadwrite.h"
 #include "avformat.h"
 #include "internal.h"
@@ -129,7 +130,7 @@ static int dsf_read_header(AVFormatContext *s)
         return AVERROR_INVALIDDATA;
     }
     st->codecpar->block_align *= st->codecpar->channels;
-    st->codecpar->bit_rate = st->codecpar->channels * st->codecpar->sample_rate * 8LL;
+    st->codecpar->bit_rate = st->codecpar->channels * 8LL * st->codecpar->sample_rate;
     avpriv_set_pts_info(st, 64, 1, st->codecpar->sample_rate);
     avio_skip(pb, 4);
 
@@ -140,13 +141,13 @@ static int dsf_read_header(AVFormatContext *s)
         return AVERROR_INVALIDDATA;
     dsf->data_size = avio_rl64(pb) - 12;
     dsf->data_end += dsf->data_size + 12;
-    s->internal->data_offset = avio_tell(pb);
 
     return 0;
 }
 
 static int dsf_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
+    FFFormatContext *const si = ffformatcontext(s);
     DSFContext *dsf = s->priv_data;
     AVIOContext *pb = s->pb;
     AVStream *st = s->streams[0];
@@ -160,7 +161,7 @@ static int dsf_read_packet(AVFormatContext *s, AVPacket *pkt)
         int last_packet = pos == (dsf->data_end - st->codecpar->block_align);
 
         if (last_packet) {
-            int64_t data_pos = pos - s->internal->data_offset;
+            int64_t data_pos = pos - si->data_offset;
             int64_t packet_size = dsf->audio_size - data_pos;
             int64_t skip_size = dsf->data_size - data_pos - packet_size;
             uint8_t *dst;
@@ -183,7 +184,7 @@ static int dsf_read_packet(AVFormatContext *s, AVPacket *pkt)
 
             pkt->pos = pos;
             pkt->stream_index = 0;
-            pkt->pts = (pos - s->internal->data_offset) / st->codecpar->channels;
+            pkt->pts = (pos - si->data_offset) / st->codecpar->channels;
             pkt->duration = packet_size / st->codecpar->channels;
             return 0;
         }
@@ -193,7 +194,7 @@ static int dsf_read_packet(AVFormatContext *s, AVPacket *pkt)
         return ret;
 
     pkt->stream_index = 0;
-    pkt->pts = (pos - s->internal->data_offset) / st->codecpar->channels;
+    pkt->pts = (pos - si->data_offset) / st->codecpar->channels;
     pkt->duration = st->codecpar->block_align / st->codecpar->channels;
 
     return 0;

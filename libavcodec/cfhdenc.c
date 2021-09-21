@@ -26,7 +26,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "libavutil/avassert.h"
 #include "libavutil/imgutils.h"
 #include "libavutil/opt.h"
 
@@ -281,7 +280,7 @@ static av_cold int cfhd_encode_init(AVCodecContext *avctx)
         h2 = h4 * 2;
 
         s->plane[i].dwt_buf =
-            av_mallocz_array(height * stride, sizeof(*s->plane[i].dwt_buf));
+            av_calloc(height * stride, sizeof(*s->plane[i].dwt_buf));
         s->plane[i].dwt_tmp =
             av_malloc_array(height * stride, sizeof(*s->plane[i].dwt_tmp));
         if (!s->plane[i].dwt_buf || !s->plane[i].dwt_tmp)

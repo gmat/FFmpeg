@@ -535,6 +535,11 @@ typedef struct AVOutputFormat {
      */
     int priv_data_size;
 
+    /**
+     * Internal flags. See FF_FMT_FLAG_* in internal.h.
+     */
+    int flags_internal;
+
     int (*write_header)(struct AVFormatContext *);
     /**
      * Write a packet. If AVFMT_ALLOW_FLUSH is set in flags,
@@ -675,6 +680,11 @@ typedef struct AVInputFormat {
     int priv_data_size;
 
     /**
+     * Internal flags. See FF_FMT_FLAG_* in internal.h.
+     */
+    int flags_internal;
+
+    /**
      * Tell if a given file has a chance of being parsed as this format.
      * The buffer provided is guaranteed to be AVPROBE_PADDING_SIZE bytes
      * big so you do not have to check for that unless you need more.
@@ -810,8 +820,6 @@ typedef struct AVIndexEntry {
  * to chapter markers. Only ever used with AV_DISPOSITION_ATTACHED_PIC.
  */
 #define AV_DISPOSITION_TIMED_THUMBNAILS  0x0800
-
-typedef struct AVStreamInternal AVStreamInternal;
 
 /**
  * To specify text track kind (different from subtitles default).
@@ -993,12 +1001,6 @@ typedef struct AVStream {
      *
      */
     int pts_wrap_bits;
-
-    /**
-     * An opaque field for libavformat internal usage.
-     * Must not be accessed in any way by callers.
-     */
-    AVStreamInternal *internal;
 } AVStream;
 
 struct AVCodecParserContext *av_stream_get_parser(const AVStream *s);
@@ -1079,8 +1081,6 @@ enum AVDurationEstimationMethod {
     AVFMT_DURATION_FROM_STREAM, ///< Duration estimated from a stream with a known duration
     AVFMT_DURATION_FROM_BITRATE ///< Duration estimated from bitrate (less accurate)
 };
-
-typedef struct AVFormatInternal AVFormatInternal;
 
 /**
  * Format I/O context.
@@ -1549,12 +1549,6 @@ typedef struct AVFormatContext {
      * - decoding: set by user
      */
     char *format_whitelist;
-
-    /**
-     * An opaque field for libavformat internal usage.
-     * Must not be accessed in any way by callers.
-     */
-    AVFormatInternal *internal;
 
     /**
      * IO repositioned flag.

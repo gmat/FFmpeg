@@ -27,21 +27,16 @@
  * Libavcodec external API header
  */
 
-#include <errno.h>
 #include "libavutil/samplefmt.h"
 #include "libavutil/attributes.h"
 #include "libavutil/avutil.h"
 #include "libavutil/buffer.h"
-#include "libavutil/cpu.h"
-#include "libavutil/channel_layout.h"
 #include "libavutil/dict.h"
 #include "libavutil/frame.h"
-#include "libavutil/hwcontext.h"
 #include "libavutil/log.h"
 #include "libavutil/pixfmt.h"
 #include "libavutil/rational.h"
 
-#include "bsf.h"
 #include "codec.h"
 #include "codec_desc.h"
 #include "codec_par.h"
@@ -250,11 +245,15 @@ typedef struct RcOverride{
  * error[?] variables will be set during encoding.
  */
 #define AV_CODEC_FLAG_PSNR            (1 << 15)
+#if FF_API_FLAG_TRUNCATED
 /**
  * Input bitstream might be truncated at a random location
  * instead of only at frame boundaries.
+ *
+ * @deprecated use codec parsers for packetizing input
  */
 #define AV_CODEC_FLAG_TRUNCATED       (1 << 16)
+#endif
 /**
  * Use interlaced DCT.
  */
@@ -1823,6 +1822,7 @@ typedef struct AVCodecContext {
     unsigned properties;
 #define FF_CODEC_PROPERTY_LOSSLESS        0x00000001
 #define FF_CODEC_PROPERTY_CLOSED_CAPTIONS 0x00000002
+#define FF_CODEC_PROPERTY_FILM_GRAIN      0x00000004
 
     /**
      * Additional data associated with the entire coded stream.
@@ -1857,13 +1857,14 @@ typedef struct AVCodecContext {
      */
     AVBufferRef *hw_frames_ctx;
 
+#if FF_API_SUB_TEXT_FORMAT
     /**
-     * Control the form of AVSubtitle.rects[N]->ass
-     * - decoding: set by user
-     * - encoding: unused
+     * @deprecated unused
      */
+    attribute_deprecated
     int sub_text_format;
 #define FF_SUB_TEXT_FMT_ASS              0
+#endif
 
     /**
      * Audio only. The amount of padding (in samples) appended by the encoder to
@@ -2931,7 +2932,7 @@ typedef struct AVCodecParserContext {
 } AVCodecParserContext;
 
 typedef struct AVCodecParser {
-    int codec_ids[5]; /* several codec IDs are permitted */
+    int codec_ids[7]; /* several codec IDs are permitted */
     int priv_data_size;
     int (*parser_init)(AVCodecParserContext *s);
     /* This callback never returns an error, a negative value means that

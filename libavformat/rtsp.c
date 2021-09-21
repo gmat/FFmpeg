@@ -122,12 +122,9 @@ static const AVOption rtp_options[] = {
 static AVDictionary *map_to_opts(RTSPState *rt)
 {
     AVDictionary *opts = NULL;
-    char buf[256];
 
-    snprintf(buf, sizeof(buf), "%d", rt->buffer_size);
-    av_dict_set(&opts, "buffer_size", buf, 0);
-    snprintf(buf, sizeof(buf), "%d", rt->pkt_size);
-    av_dict_set(&opts, "pkt_size", buf, 0);
+    av_dict_set_int(&opts, "buffer_size", rt->buffer_size, 0);
+    av_dict_set_int(&opts, "pkt_size",    rt->pkt_size,    0);
 
     return opts;
 }
@@ -218,7 +215,7 @@ static void init_rtp_handler(const RTPDynamicProtocolHandler *handler,
         par->codec_id          = handler->codec_id;
     rtsp_st->dynamic_handler = handler;
     if (st)
-        st->internal->need_parsing = handler->need_parsing;
+        ffstream(st)->need_parsing = handler->need_parsing;
     if (handler->priv_data_size) {
         rtsp_st->dynamic_protocol_context = av_mallocz(handler->priv_data_size);
         if (!rtsp_st->dynamic_protocol_context)
@@ -1259,7 +1256,8 @@ start:
         char base64buf[AV_BASE64_SIZE(sizeof(buf))];
         const char* ptr = buf;
 
-        if (!strcmp(reply->reason, "OPTIONS")) {
+        if (!strcmp(reply->reason, "OPTIONS") ||
+            !strcmp(reply->reason, "GET_PARAMETER")) {
             snprintf(buf, sizeof(buf), "RTSP/1.0 200 OK\r\n");
             if (reply->seq)
                 av_strlcatf(buf, sizeof(buf), "CSeq: %d\r\n", reply->seq);
@@ -2495,7 +2493,7 @@ static int rtp_read_header(AVFormatContext *s)
     int payload_type;
     AVCodecParameters *par = NULL;
     struct sockaddr_storage addr;
-    AVIOContext pb;
+    FFIOContext pb;
     socklen_t addrlen = sizeof(addr);
     RTSPState *rt = s->priv_data;
     const char *p;
@@ -2593,7 +2591,7 @@ static int rtp_read_header(AVFormatContext *s)
     avcodec_parameters_free(&par);
 
     ffio_init_context(&pb, sdp.str, sdp.len, 0, NULL, NULL, NULL, NULL);
-    s->pb = &pb;
+    s->pb = &pb.pub;
 
     /* if sdp_read_header() fails then following ff_network_close() cancels out */
     /* ff_network_init() at the start of this function. Otherwise it cancels out */

@@ -25,6 +25,7 @@
 
 #include "avformat.h"
 #include "internal.h"
+#include "libavutil/avstring.h"
 #include "libavutil/dict.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/tea.h"
@@ -85,6 +86,7 @@ static int aa_read_header(AVFormatContext *s)
     AADemuxContext *c = s->priv_data;
     AVIOContext *pb = s->pb;
     AVStream *st;
+    FFStream *sti;
     int ret;
 
     /* parse .aa header */
@@ -175,15 +177,14 @@ static int aa_read_header(AVFormatContext *s)
 
     /* decoder setup */
     st = avformat_new_stream(s, NULL);
-    if (!st) {
-        av_freep(&c->tea_ctx);
+    if (!st)
         return AVERROR(ENOMEM);
-    }
+    sti = ffstream(st);
     st->codecpar->codec_type = AVMEDIA_TYPE_AUDIO;
     if (!strcmp(codec_name, "mp332")) {
         st->codecpar->codec_id = AV_CODEC_ID_MP3;
         st->codecpar->sample_rate = 22050;
-        st->internal->need_parsing = AVSTREAM_PARSE_FULL_RAW;
+        sti->need_parsing = AVSTREAM_PARSE_FULL_RAW;
         avpriv_set_pts_info(st, 64, 8, 32000 * TIMEPREC);
         // encoded audio frame is MP3_FRAME_SIZE bytes (+1 with padding, unlikely)
     } else if (!strcmp(codec_name, "acelp85")) {
@@ -192,7 +193,7 @@ static int aa_read_header(AVFormatContext *s)
         st->codecpar->channels = 1;
         st->codecpar->sample_rate = 8500;
         st->codecpar->bit_rate = 8500;
-        st->internal->need_parsing = AVSTREAM_PARSE_FULL_RAW;
+        sti->need_parsing = AVSTREAM_PARSE_FULL_RAW;
         avpriv_set_pts_info(st, 64, 8, 8500 * TIMEPREC);
     } else if (!strcmp(codec_name, "acelp16")) {
         st->codecpar->codec_id = AV_CODEC_ID_SIPR;
@@ -200,7 +201,7 @@ static int aa_read_header(AVFormatContext *s)
         st->codecpar->channels = 1;
         st->codecpar->sample_rate = 16000;
         st->codecpar->bit_rate = 16000;
-        st->internal->need_parsing = AVSTREAM_PARSE_FULL_RAW;
+        sti->need_parsing = AVSTREAM_PARSE_FULL_RAW;
         avpriv_set_pts_info(st, 64, 8, 16000 * TIMEPREC);
     }
 
@@ -230,10 +231,8 @@ static int aa_read_header(AVFormatContext *s)
         avio_skip(pb, 4 + chapter_size);
         if (!avpriv_new_chapter(s, chapter_idx, st->time_base,
                                 chapter_pos * TIMEPREC,
-                                (chapter_pos + chapter_size) * TIMEPREC, NULL)) {
-            av_freep(&c->tea_ctx);
+                                (chapter_pos + chapter_size) * TIMEPREC, NULL))
             return AVERROR(ENOMEM);
-        }
     }
 
     st->duration = (largest_size - CHAPTER_HEADER_SIZE * s->nb_chapters) * TIMEPREC;
@@ -418,4 +417,5 @@ const AVInputFormat ff_aa_demuxer = {
     .read_seek      = aa_read_seek,
     .read_close     = aa_read_close,
     .flags          = AVFMT_NO_BYTE_SEEK | AVFMT_NOGENSEARCH,
+    .flags_internal = FF_FMT_INIT_CLEANUP,
 };

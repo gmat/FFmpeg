@@ -33,6 +33,7 @@
 #include "libavutil/avassert.h"
 #include "libavutil/avstring.h"
 #include "libavutil/bprint.h"
+#include "libavutil/channel_layout.h"
 #include "libavutil/display.h"
 #include "libavutil/hash.h"
 #include "libavutil/hdr_dynamic_metadata.h"
@@ -1682,9 +1683,9 @@ static void xml_print_section_header(WriterContext *wctx)
         wctx->section[wctx->level-1] : NULL;
 
     if (wctx->level == 0) {
-        const char *qual = " xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' "
-            "xmlns:ffprobe='http://www.ffmpeg.org/schema/ffprobe' "
-            "xsi:schemaLocation='http://www.ffmpeg.org/schema/ffprobe ffprobe.xsd'";
+        const char *qual = " xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
+            "xmlns:ffprobe=\"http://www.ffmpeg.org/schema/ffprobe\" "
+            "xsi:schemaLocation=\"http://www.ffmpeg.org/schema/ffprobe ffprobe.xsd\"";
 
         printf("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
         printf("<%sffprobe%s>\n",
@@ -2031,7 +2032,7 @@ static void print_pkt_side_data(WriterContext *w,
             print_int("dv_bl_signal_compatibility_id", dovi->dv_bl_signal_compatibility_id);
         } else if (sd->type == AV_PKT_DATA_AUDIO_SERVICE_TYPE) {
             enum AVAudioServiceType *t = (enum AVAudioServiceType *)sd->data;
-            print_int("type", *t);
+            print_int("service_type", *t);
         } else if (sd->type == AV_PKT_DATA_MPEGTS_STREAM_ID) {
             print_int("id", *sd->data);
         } else if (sd->type == AV_PKT_DATA_CPB_PROPERTIES) {
@@ -2247,8 +2248,8 @@ static void show_frame(WriterContext *w, AVFrame *frame, AVStream *stream,
     else   print_str_opt("media_type", "unknown");
     print_int("stream_index",           stream->index);
     print_int("key_frame",              frame->key_frame);
-    print_ts  ("pkt_pts",               frame->pts);
-    print_time("pkt_pts_time",          frame->pts, &stream->time_base);
+    print_ts  ("pts",                   frame->pts);
+    print_time("pts_time",              frame->pts, &stream->time_base);
     print_ts  ("pkt_dts",               frame->pkt_dts);
     print_time("pkt_dts_time",          frame->pkt_dts, &stream->time_base);
     print_ts  ("best_effort_timestamp", frame->best_effort_timestamp);
@@ -2655,6 +2656,7 @@ static int show_stream(WriterContext *w, AVFormatContext *fmt_ctx, int stream_id
             print_int("coded_width",  dec_ctx->coded_width);
             print_int("coded_height", dec_ctx->coded_height);
             print_int("closed_captions", !!(dec_ctx->properties & FF_CODEC_PROPERTY_CLOSED_CAPTIONS));
+            print_int("film_grain", !!(dec_ctx->properties & FF_CODEC_PROPERTY_FILM_GRAIN));
         }
         print_int("has_b_frames", par->video_delay);
         sar = av_guess_sample_aspect_ratio(fmt_ctx, stream, NULL);
@@ -2842,10 +2844,6 @@ static int show_program(WriterContext *w, InputFile *ifile, AVProgram *program)
     print_int("nb_streams", program->nb_stream_indexes);
     print_int("pmt_pid", program->pmt_pid);
     print_int("pcr_pid", program->pcr_pid);
-    print_ts("start_pts", program->start_time);
-    print_time("start_time", program->start_time, &AV_TIME_BASE_Q);
-    print_ts("end_pts", program->end_time);
-    print_time("end_time", program->end_time, &AV_TIME_BASE_Q);
     if (do_show_program_tags)
         ret = show_tags(w, program->metadata, SECTION_ID_PROGRAM_TAGS);
     if (ret < 0)
@@ -3005,8 +3003,7 @@ static int open_input_file(InputFile *ifile, const char *filename,
 
     av_dump_format(fmt_ctx, 0, filename, 0);
 
-    ifile->streams = av_mallocz_array(fmt_ctx->nb_streams,
-                                      sizeof(*ifile->streams));
+    ifile->streams = av_calloc(fmt_ctx->nb_streams, sizeof(*ifile->streams));
     if (!ifile->streams)
         exit(1);
     ifile->nb_streams = fmt_ctx->nb_streams;
@@ -3720,7 +3717,6 @@ int main(int argc, char **argv)
     options = real_options;
     parse_loglevel(argc, argv, options);
     avformat_network_init();
-    init_opts();
 #if CONFIG_AVDEVICE
     avdevice_register_all();
 #endif

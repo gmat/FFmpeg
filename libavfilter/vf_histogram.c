@@ -18,7 +18,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libavutil/avassert.h"
 #include "libavutil/colorspace.h"
 #include "libavutil/opt.h"
 #include "libavutil/parseutils.h"
@@ -489,7 +488,6 @@ static const AVFilterPad inputs[] = {
         .filter_frame = filter_frame,
         .config_props = config_input,
     },
-    { NULL }
 };
 
 static const AVFilterPad outputs[] = {
@@ -498,7 +496,6 @@ static const AVFilterPad outputs[] = {
         .type         = AVMEDIA_TYPE_VIDEO,
         .config_props = config_output,
     },
-    { NULL }
 };
 
 #if CONFIG_HISTOGRAM_FILTER
@@ -508,8 +505,8 @@ const AVFilter ff_vf_histogram = {
     .description   = NULL_IF_CONFIG_SMALL("Compute and draw a histogram."),
     .priv_size     = sizeof(HistogramContext),
     .query_formats = query_formats,
-    .inputs        = inputs,
-    .outputs       = outputs,
+    FILTER_INPUTS(inputs),
+    FILTER_OUTPUTS(outputs),
     .priv_class    = &histogram_class,
 };
 
@@ -550,8 +547,8 @@ const AVFilter ff_vf_thistogram = {
     .description   = NULL_IF_CONFIG_SMALL("Compute and draw a temporal histogram."),
     .priv_size     = sizeof(HistogramContext),
     .query_formats = query_formats,
-    .inputs        = inputs,
-    .outputs       = outputs,
+    FILTER_INPUTS(inputs),
+    FILTER_OUTPUTS(outputs),
     .uninit        = uninit,
     .priv_class    = &thistogram_class,
 };

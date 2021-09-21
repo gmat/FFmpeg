@@ -31,6 +31,7 @@
 #include <stdint.h>
 
 #include "libavutil/avstring.h"
+#include "libavutil/channel_layout.h"
 #include "libavutil/eval.h"
 #include "libavutil/mathematics.h"
 #include "libavutil/pixdesc.h"
@@ -39,7 +40,6 @@
 #include "libavutil/fifo.h"
 #include "libavutil/parseutils.h"
 #include "libavutil/samplefmt.h"
-#include "libavutil/avassert.h"
 #include "libavutil/time.h"
 #include "libavutil/bprint.h"
 #include "libavformat/avformat.h"
@@ -59,8 +59,6 @@
 #include <SDL_thread.h>
 
 #include "cmdutils.h"
-
-#include <assert.h>
 
 const char program_name[] = "ffplay";
 const int program_birth_year = 2003;
@@ -1927,7 +1925,8 @@ static int configure_video_filters(AVFilterGraph *graph, VideoState *is, const c
 } while (0)
 
     if (autorotate) {
-        double theta  = get_rotation(is->video_st);
+        int32_t *displaymatrix = (int32_t *)av_stream_get_side_data(is->video_st, AV_PKT_DATA_DISPLAYMATRIX, NULL);
+        double theta = get_rotation(displaymatrix);
 
         if (fabs(theta - 90) < 1.0) {
             INSERT_FILT("transpose", "clock");
@@ -3696,8 +3695,6 @@ int main(int argc, char **argv)
     avdevice_register_all();
 #endif
     avformat_network_init();
-
-    init_opts();
 
     signal(SIGINT , sigterm_handler); /* Interrupt (ANSI).    */
     signal(SIGTERM, sigterm_handler); /* Termination (ANSI).  */

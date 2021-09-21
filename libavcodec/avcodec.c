@@ -27,11 +27,13 @@
 #include "libavutil/avassert.h"
 #include "libavutil/avstring.h"
 #include "libavutil/bprint.h"
+#include "libavutil/channel_layout.h"
 #include "libavutil/imgutils.h"
 #include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavutil/thread.h"
 #include "avcodec.h"
+#include "bsf.h"
 #include "decode.h"
 #include "encode.h"
 #include "frame_thread_encoder.h"
@@ -656,6 +658,8 @@ void avcodec_string(char *buf, int buf_size, AVCodecContext *enc, int encode)
         } else {
             if (enc->properties & FF_CODEC_PROPERTY_CLOSED_CAPTIONS)
                 av_bprintf(&bprint, ", Closed Captions");
+            if (enc->properties & FF_CODEC_PROPERTY_FILM_GRAIN)
+                av_bprintf(&bprint, ", Film Grain");
             if (enc->properties & FF_CODEC_PROPERTY_LOSSLESS)
                 av_bprintf(&bprint, ", lossless");
         }

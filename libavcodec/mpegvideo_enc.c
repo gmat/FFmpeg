@@ -85,7 +85,7 @@ static int dct_quantize_trellis_c(MpegEncContext *s, int16_t *block, int n, int 
 static uint8_t default_mv_penalty[MAX_FCODE + 1][MAX_DMV * 2 + 1];
 static uint8_t default_fcode_tab[MAX_MV * 2 + 1];
 
-const AVOption ff_mpv_generic_options[] = {
+static const AVOption mpv_generic_options[] = {
     FF_MPV_COMMON_OPTS
 #if FF_API_MPEGVIDEO_OPTS
     FF_MPV_DEPRECATED_MPEG_QUANT_OPT
@@ -94,6 +94,13 @@ const AVOption ff_mpv_generic_options[] = {
     FF_MPV_DEPRECATED_BFRAME_OPTS
 #endif
     { NULL },
+};
+
+const AVClass ff_mpv_enc_class = {
+    .class_name = "generic mpegvideo encoder",
+    .item_name  = av_default_item_name,
+    .option     = mpv_generic_options,
+    .version    = LIBAVUTIL_VERSION_INT,
 };
 
 void ff_convert_matrix(MpegEncContext *s, int (*qmat)[64],
@@ -456,9 +463,13 @@ av_cold int ff_mpv_encode_init(AVCodecContext *avctx)
     if (!s->fixed_qscale &&
         avctx->bit_rate * av_q2d(avctx->time_base) >
             avctx->bit_rate_tolerance) {
+        double nbt = avctx->bit_rate * av_q2d(avctx->time_base) * 5;
         av_log(avctx, AV_LOG_WARNING,
                "bitrate tolerance %d too small for bitrate %"PRId64", overriding\n", avctx->bit_rate_tolerance, avctx->bit_rate);
-        avctx->bit_rate_tolerance = 5 * avctx->bit_rate * av_q2d(avctx->time_base);
+        if (nbt <= INT_MAX) {
+            avctx->bit_rate_tolerance = nbt;
+        } else
+            avctx->bit_rate_tolerance = INT_MAX;
     }
 
     if (avctx->rc_max_rate &&
@@ -4648,32 +4659,18 @@ const AVCodec ff_h263p_encoder = {
     .priv_class     = &h263p_class,
 };
 
-static const AVClass msmpeg4v2_class = {
-    .class_name = "msmpeg4v2 encoder",
-    .item_name  = av_default_item_name,
-    .option     = ff_mpv_generic_options,
-    .version    = LIBAVUTIL_VERSION_INT,
-};
-
 const AVCodec ff_msmpeg4v2_encoder = {
     .name           = "msmpeg4v2",
     .long_name      = NULL_IF_CONFIG_SMALL("MPEG-4 part 2 Microsoft variant version 2"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_MSMPEG4V2,
+    .priv_class     = &ff_mpv_enc_class,
     .priv_data_size = sizeof(MpegEncContext),
     .init           = ff_mpv_encode_init,
     .encode2        = ff_mpv_encode_picture,
     .close          = ff_mpv_encode_end,
     .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
     .pix_fmts       = (const enum AVPixelFormat[]){ AV_PIX_FMT_YUV420P, AV_PIX_FMT_NONE },
-    .priv_class     = &msmpeg4v2_class,
-};
-
-static const AVClass msmpeg4v3_class = {
-    .class_name = "msmpeg4v3 encoder",
-    .item_name  = av_default_item_name,
-    .option     = ff_mpv_generic_options,
-    .version    = LIBAVUTIL_VERSION_INT,
 };
 
 const AVCodec ff_msmpeg4v3_encoder = {
@@ -4681,20 +4678,13 @@ const AVCodec ff_msmpeg4v3_encoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("MPEG-4 part 2 Microsoft variant version 3"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_MSMPEG4V3,
+    .priv_class     = &ff_mpv_enc_class,
     .priv_data_size = sizeof(MpegEncContext),
     .init           = ff_mpv_encode_init,
     .encode2        = ff_mpv_encode_picture,
     .close          = ff_mpv_encode_end,
     .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
     .pix_fmts       = (const enum AVPixelFormat[]){ AV_PIX_FMT_YUV420P, AV_PIX_FMT_NONE },
-    .priv_class     = &msmpeg4v3_class,
-};
-
-static const AVClass wmv1_class = {
-    .class_name = "wmv1 encoder",
-    .item_name  = av_default_item_name,
-    .option     = ff_mpv_generic_options,
-    .version    = LIBAVUTIL_VERSION_INT,
 };
 
 const AVCodec ff_wmv1_encoder = {
@@ -4702,11 +4692,11 @@ const AVCodec ff_wmv1_encoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("Windows Media Video 7"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_WMV1,
+    .priv_class     = &ff_mpv_enc_class,
     .priv_data_size = sizeof(MpegEncContext),
     .init           = ff_mpv_encode_init,
     .encode2        = ff_mpv_encode_picture,
     .close          = ff_mpv_encode_end,
     .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
     .pix_fmts       = (const enum AVPixelFormat[]){ AV_PIX_FMT_YUV420P, AV_PIX_FMT_NONE },
-    .priv_class     = &wmv1_class,
 };

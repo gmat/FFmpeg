@@ -8,6 +8,7 @@ HEADERS = avformat.h                                                    \
 OBJS = allformats.o         \
        avio.o               \
        aviobuf.o            \
+       demux.o              \
        dump.o               \
        format.o             \
        id3v1.o              \
@@ -19,6 +20,7 @@ OBJS = allformats.o         \
        protocols.o          \
        riff.o               \
        sdp.o                \
+       seek.o               \
        url.o                \
        utils.o              \
 
@@ -99,9 +101,9 @@ OBJS-$(CONFIG_APM_DEMUXER)               += apm.o
 OBJS-$(CONFIG_APM_MUXER)                 += apm.o rawenc.o
 OBJS-$(CONFIG_APNG_DEMUXER)              += apngdec.o
 OBJS-$(CONFIG_APNG_MUXER)                += apngenc.o
-OBJS-$(CONFIG_APTX_DEMUXER)              += aptxdec.o rawdec.o
+OBJS-$(CONFIG_APTX_DEMUXER)              += aptxdec.o
 OBJS-$(CONFIG_APTX_MUXER)                += rawenc.o
-OBJS-$(CONFIG_APTX_HD_DEMUXER)           += aptxdec.o rawdec.o
+OBJS-$(CONFIG_APTX_HD_DEMUXER)           += aptxdec.o
 OBJS-$(CONFIG_APTX_HD_MUXER)             += rawenc.o
 OBJS-$(CONFIG_AQTITLE_DEMUXER)           += aqtitledec.o subtitles.o
 OBJS-$(CONFIG_ARGO_ASF_DEMUXER)          += argo_asf.o
@@ -147,9 +149,9 @@ OBJS-$(CONFIG_CAVSVIDEO_MUXER)           += rawenc.o
 OBJS-$(CONFIG_CDG_DEMUXER)               += cdg.o
 OBJS-$(CONFIG_CDXL_DEMUXER)              += cdxl.o
 OBJS-$(CONFIG_CINE_DEMUXER)              += cinedec.o
-OBJS-$(CONFIG_CODEC2_DEMUXER)            += codec2.o rawdec.o pcm.o
+OBJS-$(CONFIG_CODEC2_DEMUXER)            += codec2.o pcm.o
 OBJS-$(CONFIG_CODEC2_MUXER)              += codec2.o rawenc.o
-OBJS-$(CONFIG_CODEC2RAW_DEMUXER)         += codec2.o rawdec.o pcm.o
+OBJS-$(CONFIG_CODEC2RAW_DEMUXER)         += codec2.o pcm.o
 OBJS-$(CONFIG_CODEC2RAW_MUXER)           += rawenc.o
 OBJS-$(CONFIG_CONCAT_DEMUXER)            += concatdec.o
 OBJS-$(CONFIG_CRC_MUXER)                 += crcenc.o
@@ -284,7 +286,7 @@ OBJS-$(CONFIG_IMAGE_XPM_PIPE_DEMUXER)     += img2dec.o img2.o
 OBJS-$(CONFIG_IMAGE_XWD_PIPE_DEMUXER)     += img2dec.o img2.o
 OBJS-$(CONFIG_INGENIENT_DEMUXER)         += ingenientdec.o rawdec.o
 OBJS-$(CONFIG_IPMOVIE_DEMUXER)           += ipmovie.o
-OBJS-$(CONFIG_IPU_DEMUXER)               += ipudec.o
+OBJS-$(CONFIG_IPU_DEMUXER)               += ipudec.o rawdec.o
 OBJS-$(CONFIG_IRCAM_DEMUXER)             += ircamdec.o ircam.o pcm.o
 OBJS-$(CONFIG_IRCAM_MUXER)               += ircamenc.o ircam.o rawenc.o
 OBJS-$(CONFIG_ISS_DEMUXER)               += iss.o
@@ -337,7 +339,7 @@ OBJS-$(CONFIG_MOV_DEMUXER)               += mov.o mov_chan.o mov_esds.o \
                                             qtpalette.o replaygain.o
 OBJS-$(CONFIG_MOV_MUXER)                 += movenc.o av1.o avc.o hevc.o vpcc.o \
                                             movenchint.o mov_chan.o rtp.o \
-                                            movenccenc.o rawutils.o
+                                            movenccenc.o movenc_ttml.o rawutils.o
 OBJS-$(CONFIG_MP2_MUXER)                 += rawenc.o
 OBJS-$(CONFIG_MP3_DEMUXER)               += mp3dec.o replaygain.o
 OBJS-$(CONFIG_MP3_MUXER)                 += mp3enc.o rawenc.o id3v2enc.o
@@ -379,6 +381,7 @@ OBJS-$(CONFIG_NUT_MUXER)                 += nutenc.o nut.o
 OBJS-$(CONFIG_NUV_DEMUXER)               += nuv.o
 OBJS-$(CONFIG_AV1_DEMUXER)               += av1dec.o
 OBJS-$(CONFIG_OBU_DEMUXER)               += av1dec.o
+OBJS-$(CONFIG_OBU_MUXER)                 += rawenc.o
 OBJS-$(CONFIG_OGG_DEMUXER)               += oggdec.o         \
                                             oggparsecelt.o   \
                                             oggparsedirac.o  \

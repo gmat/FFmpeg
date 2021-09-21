@@ -24,9 +24,13 @@
  * Provide registration of all codecs, parsers and bitstream filters for libavcodec.
  */
 
+#include <stdint.h>
+#include <string.h>
+
 #include "config.h"
 #include "libavutil/thread.h"
-#include "avcodec.h"
+#include "codec.h"
+#include "codec_id.h"
 
 extern const AVCodec ff_a64multi_encoder;
 extern const AVCodec ff_a64multi5_encoder;
@@ -295,6 +299,7 @@ extern const AVCodec ff_sgirle_decoder;
 extern const AVCodec ff_sheervideo_decoder;
 extern const AVCodec ff_simbiosis_imx_decoder;
 extern const AVCodec ff_smacker_decoder;
+extern const AVCodec ff_smc_encoder;
 extern const AVCodec ff_smc_decoder;
 extern const AVCodec ff_smvjpeg_decoder;
 extern const AVCodec ff_snow_encoder;
@@ -474,6 +479,7 @@ extern const AVCodec ff_mp3on4float_decoder;
 extern const AVCodec ff_mp3on4_decoder;
 extern const AVCodec ff_mpc7_decoder;
 extern const AVCodec ff_mpc8_decoder;
+extern const AVCodec ff_msnsiren_decoder;
 extern const AVCodec ff_nellymoser_encoder;
 extern const AVCodec ff_nellymoser_decoder;
 extern const AVCodec ff_on2avc_decoder;

@@ -27,7 +27,6 @@
 #include "codec_id.h"
 #include "codec_desc.h"
 #include "profiles.h"
-#include "version.h"
 
 #define MT(...) (const char *const[]){ __VA_ARGS__, NULL }
 
@@ -3221,6 +3220,13 @@ static const AVCodecDescriptor codec_descriptors[] = {
         .type      = AVMEDIA_TYPE_AUDIO,
         .name      = "fastaudio",
         .long_name = NULL_IF_CONFIG_SMALL("MobiClip FastAudio"),
+        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
+    },
+    {
+        .id        = AV_CODEC_ID_MSNSIREN,
+        .type      = AVMEDIA_TYPE_AUDIO,
+        .name      = "msnsiren",
+        .long_name = NULL_IF_CONFIG_SMALL("MSN Siren"),
         .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
     },
 

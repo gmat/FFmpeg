@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include "libavutil/channel_layout.h"
 #include "avformat.h"
 #include "avio_internal.h"
 #include "internal.h"
@@ -477,6 +478,7 @@ static int mpegps_read_packet(AVFormatContext *s,
 {
     MpegDemuxContext *m = s->priv_data;
     AVStream *st;
+    FFStream *sti;
     int len, startcode, i, es_type, ret;
     int pcm_dvd = 0;
     int request_probe= 0;
@@ -613,6 +615,7 @@ skip:
     st = avformat_new_stream(s, NULL);
     if (!st)
         goto skip;
+    sti = ffstream(st);
     st->id                = startcode;
     st->codecpar->codec_type = type;
     st->codecpar->codec_id   = codec_id;
@@ -622,8 +625,8 @@ skip:
         st->codecpar->channel_layout = AV_CH_LAYOUT_MONO;
         st->codecpar->sample_rate = 8000;
     }
-    st->internal->request_probe     = request_probe;
-    st->internal->need_parsing      = AVSTREAM_PARSE_FULL;
+    sti->request_probe = request_probe;
+    sti->need_parsing  = AVSTREAM_PARSE_FULL;
 
 found:
     if (st->discard >= AVDISCARD_ALL)
@@ -723,8 +726,7 @@ static int vobsub_read_close(AVFormatContext *s)
 
     for (i = 0; i < s->nb_streams; i++)
         ff_subtitles_queue_clean(&vobsub->q[i]);
-    if (vobsub->sub_ctx)
-        avformat_close_input(&vobsub->sub_ctx);
+    avformat_close_input(&vobsub->sub_ctx);
     return 0;
 }
 
@@ -768,16 +770,16 @@ static int vobsub_read_header(AVFormatContext *s)
         return AVERROR(ENOMEM);
     }
 
-    av_bprint_init(&header, 0, INT_MAX - AV_INPUT_BUFFER_PADDING_SIZE);
-
     if ((ret = ff_copy_whiteblacklists(vobsub->sub_ctx, s)) < 0)
-        goto end;
+        return ret;
 
     ret = avformat_open_input(&vobsub->sub_ctx, vobsub->sub_name, iformat, NULL);
     if (ret < 0) {
         av_log(s, AV_LOG_ERROR, "Unable to open %s as MPEG subtitles\n", vobsub->sub_name);
-        goto end;
+        return ret;
     }
+
+    av_bprint_init(&header, 0, INT_MAX - AV_INPUT_BUFFER_PADDING_SIZE);
 
     while (!avio_feof(s->pb)) {
         char line[MAX_LINE_SIZE];
@@ -911,8 +913,6 @@ static int vobsub_read_header(AVFormatContext *s)
         memcpy(par->extradata, header.str, header.len);
     }
 end:
-    if (ret < 0)
-        vobsub_read_close(s);
     av_bprint_finalize(&header, NULL);
     return ret;
 }
@@ -1044,6 +1044,7 @@ const AVInputFormat ff_vobsub_demuxer = {
     .name           = "vobsub",
     .long_name      = NULL_IF_CONFIG_SMALL("VobSub subtitle format"),
     .priv_data_size = sizeof(VobSubDemuxContext),
+    .flags_internal = FF_FMT_INIT_CLEANUP,
     .read_probe     = vobsub_probe,
     .read_header    = vobsub_read_header,
     .read_packet    = vobsub_read_packet,

@@ -21,7 +21,6 @@
 
 #include "motion_estimation.h"
 #include "libavcodec/mathops.h"
-#include "libavutil/avassert.h"
 #include "libavutil/common.h"
 #include "libavutil/motion_vector.h"
 #include "libavutil/opt.h"
@@ -250,10 +249,7 @@ static int query_formats(AVFilterContext *ctx)
         AV_PIX_FMT_NONE
     };
 
-    AVFilterFormats *fmts_list = ff_make_format_list(pix_fmts);
-    if (!fmts_list)
-        return AVERROR(ENOMEM);
-    return ff_set_common_formats(ctx, fmts_list);
+    return ff_set_common_formats_from_list(ctx, pix_fmts);
 }
 
 static uint64_t get_sbad(AVMotionEstContext *me_ctx, int x, int y, int x_mv, int y_mv)
@@ -357,7 +353,7 @@ static int config_input(AVFilterLink *inlink)
 
     for (i = 0; i < NB_FRAMES; i++) {
         Frame *frame = &mi_ctx->frames[i];
-        frame->blocks = av_mallocz_array(mi_ctx->b_count, sizeof(Block));
+        frame->blocks = av_calloc(mi_ctx->b_count, sizeof(*frame->blocks));
         if (!frame->blocks)
             return AVERROR(ENOMEM);
     }
@@ -377,19 +373,19 @@ static int config_input(AVFilterLink *inlink)
         else if (mi_ctx->me_mode == ME_MODE_BILAT)
             me_ctx->get_cost = &get_sbad_ob;
 
-        mi_ctx->pixel_mvs = av_mallocz_array(width * height, sizeof(PixelMVS));
-        mi_ctx->pixel_weights = av_mallocz_array(width * height, sizeof(PixelWeights));
-        mi_ctx->pixel_refs = av_mallocz_array(width * height, sizeof(PixelRefs));
+        mi_ctx->pixel_mvs     = av_calloc(width * height, sizeof(*mi_ctx->pixel_mvs));
+        mi_ctx->pixel_weights = av_calloc(width * height, sizeof(*mi_ctx->pixel_weights));
+        mi_ctx->pixel_refs    = av_calloc(width * height, sizeof(*mi_ctx->pixel_refs));
         if (!mi_ctx->pixel_mvs || !mi_ctx->pixel_weights || !mi_ctx->pixel_refs)
             return AVERROR(ENOMEM);
 
         if (mi_ctx->me_mode == ME_MODE_BILAT)
-            if (!(mi_ctx->int_blocks = av_mallocz_array(mi_ctx->b_count, sizeof(Block))))
+            if (!FF_ALLOCZ_TYPED_ARRAY(mi_ctx->int_blocks, mi_ctx->b_count))
                 return AVERROR(ENOMEM);
 
         if (mi_ctx->me_method == AV_ME_METHOD_EPZS) {
             for (i = 0; i < 3; i++) {
-                mi_ctx->mv_table[i] = av_mallocz_array(mi_ctx->b_count, sizeof(*mi_ctx->mv_table[0]));
+                mi_ctx->mv_table[i] = av_calloc(mi_ctx->b_count, sizeof(*mi_ctx->mv_table[0]));
                 if (!mi_ctx->mv_table[i])
                     return AVERROR(ENOMEM);
             }
@@ -605,7 +601,7 @@ static int var_size_bme(MIContext *mi_ctx, Block *block, int x_mb, int y_mb, int
     }
 
     if (!block->subs) {
-        block->subs = av_mallocz_array(4, sizeof(Block));
+        block->subs = av_mallocz(4 * sizeof(*block->subs));
         if (!block->subs)
             return AVERROR(ENOMEM);
     }
@@ -1246,7 +1242,6 @@ static const AVFilterPad minterpolate_inputs[] = {
         .filter_frame  = filter_frame,
         .config_props  = config_input,
     },
-    { NULL }
 };
 
 static const AVFilterPad minterpolate_outputs[] = {
@@ -1255,7 +1250,6 @@ static const AVFilterPad minterpolate_outputs[] = {
         .type          = AVMEDIA_TYPE_VIDEO,
         .config_props  = config_output,
     },
-    { NULL }
 };
 
 const AVFilter ff_vf_minterpolate = {
@@ -1265,6 +1259,6 @@ const AVFilter ff_vf_minterpolate = {
     .priv_class    = &minterpolate_class,
     .uninit        = uninit,
     .query_formats = query_formats,
-    .inputs        = minterpolate_inputs,
-    .outputs       = minterpolate_outputs,
+    FILTER_INPUTS(minterpolate_inputs),
+    FILTER_OUTPUTS(minterpolate_outputs),
 };

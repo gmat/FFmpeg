@@ -308,9 +308,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *frame)
     AVDictionary **metadata = &frame->metadata;
     AVDictionaryEntry *e;
 
-    if (!*metadata && s->mode != METADATA_ADD)
-        return ff_filter_frame(outlink, frame);
-
     e = av_dict_get(*metadata, !s->key ? "" : s->key, NULL,
                     !s->key ? AV_DICT_IGNORE_SUFFIX: 0);
 
@@ -376,7 +373,6 @@ static const AVFilterPad ainputs[] = {
         .type         = AVMEDIA_TYPE_AUDIO,
         .filter_frame = filter_frame,
     },
-    { NULL }
 };
 
 static const AVFilterPad aoutputs[] = {
@@ -384,7 +380,6 @@ static const AVFilterPad aoutputs[] = {
         .name = "default",
         .type = AVMEDIA_TYPE_AUDIO,
     },
-    { NULL }
 };
 
 const AVFilter ff_af_ametadata = {
@@ -394,8 +389,8 @@ const AVFilter ff_af_ametadata = {
     .priv_class    = &ametadata_class,
     .init          = init,
     .uninit        = uninit,
-    .inputs        = ainputs,
-    .outputs       = aoutputs,
+    FILTER_INPUTS(ainputs),
+    FILTER_OUTPUTS(aoutputs),
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
 };
 #endif /* CONFIG_AMETADATA_FILTER */
@@ -411,7 +406,6 @@ static const AVFilterPad inputs[] = {
         .type         = AVMEDIA_TYPE_VIDEO,
         .filter_frame = filter_frame,
     },
-    { NULL }
 };
 
 static const AVFilterPad outputs[] = {
@@ -419,7 +413,6 @@ static const AVFilterPad outputs[] = {
         .name = "default",
         .type = AVMEDIA_TYPE_VIDEO,
     },
-    { NULL }
 };
 
 const AVFilter ff_vf_metadata = {
@@ -429,8 +422,8 @@ const AVFilter ff_vf_metadata = {
     .priv_class  = &metadata_class,
     .init        = init,
     .uninit      = uninit,
-    .inputs      = inputs,
-    .outputs     = outputs,
+    FILTER_INPUTS(inputs),
+    FILTER_OUTPUTS(outputs),
     .flags       = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
 };
 #endif /* CONFIG_METADATA_FILTER */
